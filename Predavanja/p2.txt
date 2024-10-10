@@ -50,10 +50,11 @@ ali prije instrukcije ret mora se vratiti stack na stanje kakvo je bilo prije po
 
 Svi argumenti su na stacku od callera.
 Argumenti se redaju na takav nacin da se zadnji argument prvi stavlja na stack (prvi argument bude zadnji na stack-u).
-POVRATNA VRIJEDNOST funkcije se sprema u registart %eax.
+POVRATNA VRIJEDNOST funkcije se sprema u registar %eax.
 
 Prvo sto pozvana funkcija treba uraditi je da spremi vrijednost %ebp na stack, a zatim postavi vrijednost %ebp na vrijednost iz %esp. (PROLOG funkcije)
 Postoji instrukcija enter koja radi ovo prethodno navedeno.
 
-Zadnje sto pozvana funkcija treba uraditi je da postavi vrijednost u %esp na vrijednost iz %ebp, uradi popl %ebp da vrati %ebp na pocetak stack frame-a caller funkcije, a zatim se radi instrukcija ret. (EPILOG funkcije)
+Zadnje sto pozvana funkcija treba uraditi je da postavi vrijednost u %esp na vrijednost iz %ebp, 
+uradi popl %ebp da vrati %ebp na pocetak stack frame-a caller funkcije, a zatim se radi instrukcija ret. (EPILOG funkcije)
 Postoji instrukcija leave koja radi ovo prethodno navedeno.
