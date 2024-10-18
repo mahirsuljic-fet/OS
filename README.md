@@ -17,4 +17,4 @@ Profesorove prezentacije iz predmeta.
 ## [Vjezbe](./Vjezbe)
 Kod i primjeri sa vježbi.
 
-## [Git cheatsheet](https://github.com/mahirsuljic-fet/RandomUseful/blob/main/git.txt)
+### [Git cheatsheet](https://github.com/mahirsuljic-fet/RandomUseful/blob/main/git.txt)
