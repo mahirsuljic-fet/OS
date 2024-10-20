@@ -18,3 +18,7 @@ Profesorove prezentacije iz predmeta.
 Kod i primjeri sa vježbi.
 
 ### [Git cheatsheet](https://github.com/mahirsuljic-fet/RandomUseful/blob/main/git.txt)
+
+### [XV6](https://github.com/mit-pdos/xv6-public)
+
+### [JOS](https://github.com/phlalx/jos)
