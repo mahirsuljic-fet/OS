@@ -4,13 +4,12 @@ OS stvara iluziju aplikaciji da ona ima svoju jezgru (procesor) i kompletnu memo
 Registri opste namjene su 32 bitni.
 
 %ax, %bc, ... su 16-bit virtuelni registri
-Registri koji zavrsavaju sa x (%eax, %ebx, %ecx, %edx) imaju i h (high) i l (low) pristup 
+Registri koji zavrsavaju sa x (%eax, %ebx, %ecx, %edx) imaju i h (high) i l (low) pristup.
 (najnizih i najvisih 8 bita datog virtuelog registra, npr. %al je najnizih 8 bita virtuelnog registra %ax, odnosno registra %eax).
 
 Registar %eip sluzi kao programski brojac ($pc u MIPS32).
 
-Prilikom izvrsenja svake instrukcije obavezno ce se promijeniti (postaviti na neku vrijednost, mozda istu cak, ali se postavi na nesto) 
-neki flag unutar registra eflags (Amer reko BITNO).
+Prilikom izvrsenja svake instrukcije obavezno ce se promijeniti neki flag unutar registra eflags (postaviti ce se na neku vrijednost, mozda istu cak, ali se postavi na nesto, Amer reko BITNO).
 
 Postoje dvije strategije virtualizacije memorije: stranicenje i segmentiranje.
 Stranicenje se pokazalo boljim, ali na intel platformi je neophodno poznavati i segmentiranje.
@@ -18,7 +17,7 @@ Segmentni registri postoje zbog virtualizacije memorije.
 Segmentni registri su 16-bitni.
 
 Koristit cemo AT&T asembler notaciju.
-Nazalost vecina literature koristi Intel notaciju, ali se AT&T cesce koristi.
+Nazalost vecina literature koristi Intel notaciju, ali se AT&T cesce koristi u praksi.
 
 Instrukcije se mogu korsititi i bez sufiksa (b, w i l), ali bolje ne koristit ako ne znas tacno sta radis, mogu se cudne stvari desit.
 
@@ -45,8 +44,7 @@ PREZERVIRANI registri su:   %ebp, %ebx, %esi, %edi
 NEPREZERVIRANI registri su: %eax, %ecx, %edx
 
 Na intel arhitekturi funkciju pozivamo sa instrukcijom call, pri cemu se povratna adresa sprema na kraj stack-a.
-U caller funkciju vracamo se pomocu instrukcije ret (bez argumenta), 
-ali prije instrukcije ret mora se vratiti stack na stanje kakvo je bilo prije poziva funkcije.
+U caller funkciju vracamo se pomocu instrukcije ret (bez argumenata), ali prije instrukcije ret mora se vratiti stack na stanje kakvo je bilo prije poziva funkcije.
 
 Svi argumenti su na stacku od callera.
 Argumenti se redaju na takav nacin da se zadnji argument prvi stavlja na stack (prvi argument bude zadnji na stack-u).
@@ -55,6 +53,5 @@ POVRATNA VRIJEDNOST funkcije se sprema u registar %eax.
 Prvo sto pozvana funkcija treba uraditi je da spremi vrijednost %ebp na stack, a zatim postavi vrijednost %ebp na vrijednost iz %esp. (PROLOG funkcije)
 Postoji instrukcija enter koja radi ovo prethodno navedeno.
 
-Zadnje sto pozvana funkcija treba uraditi je da postavi vrijednost u %esp na vrijednost iz %ebp, 
-uradi popl %ebp da vrati %ebp na pocetak stack frame-a caller funkcije, a zatim se radi instrukcija ret. (EPILOG funkcije)
+Zadnje sto pozvana funkcija treba uraditi je da postavi vrijednost u %esp na vrijednost iz %ebp, uradi popl %ebp da vrati %ebp na pocetak stack frame-a caller funkcije, a zatim se radi instrukcija ret. (EPILOG funkcije)
 Postoji instrukcija leave koja radi ovo prethodno navedeno.

@@ -1,6 +1,6 @@
 kernel-space instrukcije
-2 podskupa masinskih instrukcija (privilegovane (OS) i nepriligovane (AR))
-kernel mod (OS) i user mod (AR)
+2 podskupa masinskih instrukcija (privilegovane (ucimo u predmetu OS) i nepriligovane (koristili smo u predmetu AR))
+Procesor ima kernel mod (predmet OS) i user mod (predmet AR)
 
 Operativni sistemi se pisu u c i assembleru.
 
@@ -12,11 +12,10 @@ libc nije isti ni na jednom OS-u (drugacije na Linuxu, Windows, MacOS...), ali j
 
 Samo veoma pametni ljudi koriste MS Office.
 
-Prije OS-a (kernela) se ucitaju neki programi (ucit cemo kasnije), ali oni nestaju iz memorije,
-pa se moze reci da je OS prvi program koji se ucitaje u memoriju, i ostaje u memoriju sve do gasenja racunara.
+Prije OS-a (kernela) se ucitaju neki programi (ucit cemo kasnije), ali oni nestaju iz memorije, pa se moze reci da je OS prvi program koji se ucitaje u memoriju, i ostaje u memoriju sve do gasenja racunara.
 
 /lib/modules/ - direktorija za drivere i slicno
 /boot/vmlinuz - kernel (link na kernel)
 lsmod         - lista trenutno koristenih modula
 
-Mala velicina /boot/vmlinuz-X-generic fajla je zato jer je zipovana, unzipovana je oko 100MB.
+Mala velicina /boot/vmlinuz-X-generic fajla je zato jer je zipovana, unzipovana je oko 100MB (sto je i dalje relativno malo).
