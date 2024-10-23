@@ -1,0 +1,135 @@
+Prije nego sto se prebaci u protected mode neophodno je da se konfigurise GDT (flat model segmentacije, prezentacija 2).
+U novijim verzijama XV6 %es, %gs i %fs su postavljeni na 0 (asocirani sa nultim deskriptorom).
+RPL i T su u sva tri segmentna registra koje koristimo su isti, sto znaci da su prva tri bita svih navedenih registara isti.
+Ako flat model segmentacije nije dobro podeseno desava se iznimka.
+Buduci da kernel treba da tretira tu iznimku, a on je sam proizveo tu iznimku, racunar ce se resetovat, jer nema nista sto ce tretirat iznimku.
+Kernel ne moze popravit svoje probleme. Znaci ako imamo buh u kernelu, imamo bug u svim programima na racunaru.
+Ako se desi problem sa kernelom, ili ce se racunar zamrznuti, ili ce se restartovati.
+Novije maticne ploce mogu raditi u dva BIOS moda: legacy (koji koristimo u ovom predmetu) i UEFI.
+
+Prvi blok na boot disku se naziva MBR (Master Boot Record).
+BIOS ucitaje taj sektor na lokaciju 0x7C00 i izvrsava jump na tu adresu (jmp 0x7C00).
+Taj dio se nalazi u low memory dijelu 20 bitnog adresnog prostora.
+Zadnji korak koji se desi prilikom instalacije OS-a pise se u MBR.
+File system je struktura podataka koja pohranjuje fajlove.
+Formatiranjem se inicijalizira fajl sistem na datoj particiji.
+Uredjaji za pohranu (SSD, HDD, ...) imaju podjelu memorije na 512B sektore.
+Podjela na sektore od 512B je kao i sto je RAM podijeljen na dijelove od 1B (8 bita).
+File sisteme necemo obradjivati u ovom prodmetu, nastavlja se u sistemskom programiranju.
+
+Bootloader mora raditi u real modu i mora stati u otprilike 400B koji se mogu pohraniti u sektor od 512B.
+Buduci da su i najmanji c programi velicine reda kilobajti, neophodno je bootloader pisati u asembleru.
+Prva stvar koju trebamo da uradimo je da podesimo GDT.
+Druga stvar koju treba da uradi je da ucita kernel, sto je pozeljno da napravimo da mozemo napisati u c jeziku, jer je veoma tesko napisati taj dio u asembleru.
+Bootloader za Linux se naziva GRUB, koji moze ucitati i Windows kernel.
+Windows ima svoj bootloader koji ne moze ucitati Linux.
+
+Za XV6 moramo imati dva diska.
+Prvi segment boot diska sadrzaje bootloader.
+Naredni sektor sadrzi pocetak kernela (kao fajla u ELF formatu).
+Kernel moze biti proizvoljne velicine (nema ogranicenja).
+Bootloader cita velicinu kernela (koliko sektora zauzima na disku) iz metapodataka kernel fajla.
+Stack se alocira tako sto se stack pointer postavlja na neku datu adresu.
+Kernel ce podrazumijevat da ima stack, tako da bootloader mora mu alocirat stack.
+
+NEKI FLAGOVI U MAKEFILE
+-fno-builtin flag govori kompajleru ne koristi nista kao c standardnu biblioteku
+-fno-pic     flag govori nemoj koristit position independant code
+-static      flag govori da staticki linka, a ne dinamicki
+-nostdinc    flag govori ne koristi standardnu biblioteku
+-e           flag govori koji simbol je entry point programa
+-Ttext       flag govori od koje adrese da text sekcija pocne u linkanom objektnom fajlu, ako se ne navede default je 0, na datu adresu stavlja text sekciju prvog navedenog fajla
+
+
+BOOTLOADER (ASEMBLERSKI DIO)
+
+Slijedi analiza koda bootloadera koja se nalazi u fajlu bootasm.S xv6 operativnog sistema.
+
+U ovom dijelu bootloader je ucitan u memoriju od strane BIOS-a i to na takav nacin da je prva instrukcija nakon label-a start na adresi 0x7C00 (tako smo rekli pri asembliranju sa -Ttext flagom i na tu adresu ce BIOS da odradi jump).
+Simbol (label) start je entry point bootloader-a, tj. mjesto od kojeg se pocinju izvrsavati instrukcije.
+Prije simbola start nalazi se direktiva .code16, koja govori da su sve instrukcije posle nje 16-bitne.
+Ovo je vrlo vazno jer real mode koristi 16-bitne instrukcije, te ne bi ispravno radio drugacije.
+
+Prva instrukcija bootloadera je cli koja gasi sve interrupte (prekide).
+Zatim slijedi podesavanje segmentnih registara.
+U registar %ax (koristimo 16-bitne virtuelne registre) se postavlja vrijednost 0 na takav nacin da se odradi bitwise xor sa samim sobom.
+Koristena instrukcija -> xorw %ax, %ax
+Koristi se xorw umjesto mov jer je kompantnija (zauzima manje mjesta, prisjetimo se da su na intel platformi instrukcije varijabilne duzine od 1B do 17B).
+Zatim se pomocu %ax postave vrijednosti segmentnih na 0 (koristimo %ax jer ne mozemo direktno konstantu ucitati u segmentne registre).
+U dijelu koda pod labelama seta20.1 i seta20.2 bootloader komunicira sa kontolerom tastature i taj dio cemo preskociti, pravit se da ne postoji.
+
+Zatim je potrebno podesiti GDT.
+Inicijalizacija GDT se nalazi nakon label-a gdt.
+Koriste se dvije preprocesorske funkcije (SEG_NULLASM i SEG_ASM(type, base, limit)).
+SEG_NULLASM ne prima nikakve argumente i kreira nulti deskriptor (64 nule).
+SEG_ASM prima tri argumenta.
+Prvi odredjuje permisije segmenta (da li smije izvrsavat kod, pisat, citat, itd.).
+Drugi odredjuje memorijsku adresu gdje pocinje dati segment (base polja deskriptora).
+Treci odredjuje memorijsku adresu gdje zavrsava dati segment (limit polja deskriptora).
+Prvi argument moze imati tri permisije: STA_X (executable), STA_R (readable) i STA_W (writable).
+Implementacijom funkcije SEG_ASM se na svu srecu ne bavimo, ali prakticno radi maskiranje i bitwise operacije da podesi bite deskriptora.
+Ako neko zeli da ogorca sebi zivot, funkcija SEG_ASM je implementirana u asm.h.
+Moguce je kombinovati permisije sa bitwise or operatorom pa npr. za prvi segment, gdje nam treba executable i readable pisemo STA_X | STA_R.
+Ako je segment writable podrazumijeva se da je readable.
+Nasa dva segmenta (prvi executable readable non-writable, drugi non-executable writable) pocinju na pocetku adresnog prostora (adresa 0x00000000), a zavrsavaju na kraju adresnog prostora (adresa 0xffffffff).
+Buduci da konfigurisemo GDT jer cemo ga koristiti u protected modu, koji je 32 bitni, adrese su 32 bitne.
+Time je napravljen GDT sa tri deskriptora (nulti, code i data).
+
+Nakon Inicijalizacije GDT, potrebno je podesiti GDTR (GDT Registar).
+GDTR je 48 bitni registar koji pohranjuje podatke o GDT i to na nacin da u 32 bita sprema adresu pocetka GDT, a u preostalih 16 bita sprema velicinu GDT u bajtima.
+Prisjetimo se da su label-i u asembleru zapravo konstante koje predstavljaju memorijske adrese.
+Nakon label-a gdtdesc su podaci koji ce se kasnije spremiti u GDTR.
+Buduci da se label gdtdesc nalazi nakon direktiva koje prave GDT, gdtdesc ce zapravo biti adresa prvog bajta nakon GDT (same tabele).
+Direktiva  .word (gdtdesc - gdt - 1)  racuna velicinu GDT tako sto uzme adresu nakon GDT (gdtdesc), oduzme od nje adresu pocetka GDT (gdt) i jos oduzme 1 jer gdtdesc pokazuje posle kraja GDT, a ne na sam kraj.
+Vizuelni prikaz:
+                    -----------------------------
+                    |            ...            |
+                    | .long gdt                 | )
+         gdtdesc -> | .word (gdtdesc - gdt - 1) | ) - GDTR (odnosno ono sto ce se spremiti u GDTR)
+        kraj GDT -> |        DATA SEGMENT       | }
+                    |        CODE SEGMENT       | } - GDT
+gdt, pocetak GDT -> |        NULL SEGMENT       | }
+                    |            ...            |
+                    -----------------------------
+Na kraju, da bi podatke o GDT (adresu pocetka i velicinu) pohranili u GDTR, koristimo instrukciju lgdt (Load Global Descriptor Table) i to sa argumentom gdtdesc (lgdt gdtdesc), jer nam se tu nalaze podaci.
+
+Sve sto je ostalo je da procesor prebacimo u protected mode.
+To radimo tako sto nulti bit (PE bit) kontrolnog registra %cr0 postavimo na 1.
+Spremimo sadrzaj iz %cr0 u neki registar opste namjene (npr. %eax).
+Izvrsimo bitwise or sa %eax (u kojem je vrijednost iz %cr0) i konstantom $CR0_PE (govori koji bit da promijeni, u ovom slucaju $CR0_PE je definisana kao 1).
+Sada je u %eax vrijednost registra %cr0, ali sa nultim bitom postavljenim na 1.
+Pohranjivanjem vrijednosti iz %eax nazad u %cr0 procesor je prebacen u protected mode.
+
+Buduci da je procesor sada u protected modu, sve instrukcije koje izvrsavamo trebaju biti 32 bitne.
+Problem je sto smo mi u da dalje u dijelu koda gdje su 16 bitne instrukcije (zbog .code16).
+Jedina instrukcija koju mozemo izvrsiti je ljmp (long jump) i ovom instrukcjiom "skacemo" na mjesto gdje se nalaze 32 bitne instrukcije.
+Ova instrukcija podesava %cs (tako da koristimo executable segment) i %eip (tako da izvrsavamo 32 bitne instrukcije).
+Prvi argument ljmp instrukcije podesava %cs (pohranjuje navedenu vrijednost u njega).
+Drugi argument ljmp instrukcije podesava %eip (pohranjuje navedenu vrijednost u njega).
+U nasem kodu, prvi argument je $(SEG_KCODE << 3).
+SEG_KCODE je konstanta definisana u mmu.h i iznosi 1.
+Ovo je zapravo indeks segmenta kojeg cemo koristiti.
+Buduci da konfigurisemo %cs, koristit cemo code segment, odnosno segment sa indeksom 1 (0 je null, 1 je code, 2 je data).
+Indeks 1 shiftamo u lijevo za 3 mjesta, cime ga efektivno mnozimo sa 8.
+Rezultat je 8, tj. 8 bajta, sto je 64 bita.
+Prisjetimo se da je jedan deskriptor velicine 64 bita (8 bajti).
+Ovim smo napravili da %cs pokazuje na code segment i koristi deskriptor asociran sa njim.
+Prilikom izvrsenja ljmp instrukcije kesira se koristeni deskriptor (u ovom slucajnu sa indeksom 1, koji je code segment).
+Drugi argument je simbol start32 koji predstavlja adresu prve 32 bitne instrukcije.
+Primijetimo da je prije label-a start32 koristena direktiva .code32 sto govori da su sve instrukcije posle nje 32 bitne.
+
+Sada kada smo u protected modu, potrebno je podesiti ostale segmentne registre.
+Ne mozemo direktno konstante pohraniti u segmentne registre pa moramo zeljene vrijednosti prvo pohraniti u registar opste namjene.
+Konstantu $(SEG_KDATA << 3) smijestamo u %ax (koristimo 16 bitni registar jer su segmentni registri 16 bitni).
+Konstanta SEG_KDATA je definisana kao 2, pa u %ax ce biti 128.
+Na isti nacin kao i sa SEG_KCODE, SEG_KDATA predstavlja indeks data segmenta (deskriptora).
+Dobijenu vrijednost iz %ax smijestamo u %ds, %ss i %es.
+Segmentne registre %fs i %gs necemo koristiti pa ih postavimo na nulu.
+Buduci da zelimo koristiti c jezik da napisemo ostatak bootloadera, neophodno je napraviti stack.
+Ispod adrese entry point-a (start) je "prazna", nekoristena memorija.
+U tom dijelu pravimo stack tako sto stack pointer (%esp) postavimo na adresu start simbola.
+Sada nam je vrh stack-a na adresi 0x7C00, sto znaci da imamo gotovo 32kB stack-a (od 0x7C00 (adresa start-a) do 0x0000).
+Zatim pozivamo funkciju bootmain, koja je definisana u bootmain.c i sadrzi ostatak bootloadera.
+Nikada se ne bi trebao desiti povratak iz te funkcije.
+Ukoliko se desi povratak iz bootmain, to znaci da je doslo do neke greske (kernel nije pravilo ucitan ili slicno).
+U tom slucaju dolazimo do linije  spin: jmp spin  i time se procesor beskonacno "vrti", izvrsava skok na jednu te istu instrukciju zauvijek sto rezultuje zamrzavanjem racunara.
