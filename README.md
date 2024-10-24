@@ -7,6 +7,7 @@ Operativni sistemi (OS)
 - [Operating System Concepts](./Literatura/Operating_System_Concepts.pdf)                          
 - [Modern Operating Systems](./Literatura/Modern_Operating_Systems.pdf)                           
 - [IA-32 Assembly Language Reference Manual](./Literatura/IA-32_Assembly_Language_Reference_Manual.pdf)           
+- [Intel 64 and IA-32 Architectures Software Developer’s Manual](./Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf)
 
 ## [Predavanja](./Predavanja)
 Bilješke sa predavanja.
