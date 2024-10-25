@@ -1,0 +1,97 @@
+IA32
+AT&T (gcc notacija)
+
+GENERALNI REGISTRI
+%eax -> %ax -> %ah, %al
+%ecx -> %cx -> %ch, %cl
+%edx -> %dx -> %dh, %dl
+%ebx -> %bx -> %bh, %bl
+%esi
+%edi
+
+%esp    - stack pointer, pokazuje na dno stack-a
+%ebp    - begin pointer, pokazuje na pocetak trenutnog stack frame-a
+
+
+POSEBNI REGISTRI (generalno za kontrolu toka programa)
+%eip    - instruction pointer
+%eflags - cuva informacije o prethodno izvrsenoj komandi (korisno kod grananja)
+
+
+SEGMENTNI REGISTRI
+%cs
+%ss
+%ds
+%es
+%fs
+%gs
+
+KONTROLNI REGISTI
+%cr0
+%cr1
+%cr2
+%cr3
+
+
+3 tipa instrukcija:
+aritmeticko-logicke
+prenos podataka
+kontrola toka
+
+3 sufiksa na instrukcije:
+b - byte (1B, 8b)
+w - word (2B, 16b)
+l - long (4B, 32b)
+
+
+GLAVNI FORMAT INSTRUKCIJA
+instrukcija op1 op2
+op1 je source
+op2 je destination, pri cemu i on moze ulaziti u proracun (npr. pri sabiranju)
+op1 ili op2 mogu biti memorijska lokacija (adresa), ali ne mogu oba biti memorijske lokacije istovremeno (bar jedan mora biti registar)
+
+GENERALNI FROMAT ADRESE
+imm(reg1, reg2, scalar)   ->   imm + reg1 + reg2 * scalar
+imm i scalar su cjelobrojne konstante
+reg1 i reg2 su registri iz kojih se cita vrijednost
+
+KONTROLA TOKA
+jmp   -> bezuslovni skok
+jle   -> jump on less than or equal to
+jge   -> jump on greater than or equal to
+...   -> postoje vise manje sve varijante koje mozes zamislit, jeq (jump on equal), jlt (jump on less than), jnz (jump on not zero), itd.
+call  -> poziv funkcije
+
+ARGUMENTI
+postavljaju se na stack, na dno trenutnog stack frame-a, na takav nacin da prvi argument funkcije bude zadnji na stack-u
+
+PROLOG
+pri pozivanju funkcije potrebno je sacuvati instruction pointer (%eip) i lokaciju pocetka stack frame-a caller funkcije (%ebp) te %ebp postaviti na %esp pomocu mov instrukcije
+call instrukcija automatski sprema %eip na stack, a enter instrukcija sprema %ebp na stack i postavlja %ebp na vrijednost iz %esp
+
+EPILOG
+pri vracanju uz funkcije potrebno je vratiti stack na prethodno stanje (vratiti %ebp, %esp) i vratiti tok programa na pozvano mjesto (%eip)
+leave instrukcija postavlja %esp na %ebp i postavlja %ebp na vrijednost pohranjenu na stack
+ret instrukcija postavlja %eip na vrijednost pohranjenu na stack te se time tok programa vraca u caller funkciju
+
+POVRATNA VRIJEDNOST
+povratna vrijednost se smjesta u %eax
+
+
+KOMPAJLIRANJE U 32bit MODU (koristi se flag -m32)
+gcc -m32 -o IME_OUTPUT_FAJLA IME_SOURCE_FAJLA
+Ako dobijete error da gcc ne moze naci neki fajl, potrebon je instalirati 32 bitne biblioteke sljedecom komandom:
+sudo apt install gcc-multilib
+
+KORISTENJE GDB
+Potrebno je kompajlirati sa -g flagom
+gcc -m32 -g -o IME_OUTPUT_FAJLA IME_SOURCE_FAJLA
+gdb IME_OUTPUT_FAJLA
+
+help KOMANDA  - prikazuje pomoc za KOMANDA (npr. help layout)
+ni            - next instrucion
+layout TYPE   - promjena layouta (TYPE: src, regs, off, prev, ...)
+x/IMMT ADDR   - examine IMM T from ADDR (procitaj IMM vrijednosti (neki broj) tipa T (npr. w za word, b za byte, L za long, itd.) sa adrese ADDR, npr. x/4w $0x12345678)
+&VAR          - adresa varijable VAR (moze se koristiti sa komandom x/...)
+b LABEL       - postavi breakpoint na LABEL (npr. b main), skracenica od breakpoint LABEL
+c             - nastavi izvrsavanje do sljedeceg breakpointa ili kraja programa, skracenica od continue
