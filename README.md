@@ -20,6 +20,8 @@ Kod i primjeri sa vježbi.
 
 -------------------------
 
+### [x86 instrukcije](https://www.felixcloutier.com/x86/)
+
 ### [Git cheatsheet](https://github.com/mahirsuljic-fet/RandomUseful/blob/main/git.txt)
 
 ### [XV6](https://github.com/mit-pdos/xv6-public)
