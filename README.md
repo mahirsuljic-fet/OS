@@ -18,6 +18,9 @@ Profesorove prezentacije iz predmeta.
 ## [Vjezbe](./Vjezbe)
 Kod i primjeri sa vježbi.
 
+## [Labs](./Labs)
+Odgovori na pitanja iz zadaća (MIT lab-ova).
+
 -------------------------
 
 ### [x86 instrukcije](https://c9x.me/x86/)
