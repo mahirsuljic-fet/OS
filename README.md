@@ -23,12 +23,16 @@ Odgovori na pitanja iz zadaća (MIT lab-ova).
 
 -------------------------
 
-### [x86 instrukcije](https://c9x.me/x86/)
+### [MIT 6.828](https://pdos.csail.mit.edu/6.828/2018/overview.html)
 
-### [x86 instrukcije](https://www.felixcloutier.com/x86/)
+### [OSdev wiki](https://wiki.osdev.org/)
 
-### [Git cheatsheet](https://github.com/mahirsuljic-fet/RandomUseful/blob/main/git.txt)
+### [x86 instrukcije (felixcloutier)](https://www.felixcloutier.com/x86/)
 
-### [XV6](https://github.com/mit-pdos/xv6-public)
+### [x86 instrukcije (c9x)](https://c9x.me/x86/)
 
-### [JOS](https://github.com/phlalx/jos)
+### [Git cheatsheet](https://education.github.com/git-cheat-sheet-education.pdf)
+
+### [XV6 github repository](https://github.com/mit-pdos/xv6-public)
+
+### [JOS github repository](https://github.com/phlalx/jos)
