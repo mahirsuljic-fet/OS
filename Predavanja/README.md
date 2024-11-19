@@ -7,3 +7,5 @@
 ### [Predavanje 5 - ELF i straničenje](./p5.md)
 ### [Predavanje 6 - Straničenje, početak kernela](./p6.md)
 ### [Predavanje 7 - Linker skripte i page allocator](./p7.md)
+
+### [Cheatsheet](./cheatsheet.md)
