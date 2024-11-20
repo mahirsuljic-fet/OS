@@ -102,3 +102,64 @@
 | RW     | 1           | Read/Write, za code segment označava da li se može čitati iz njega, za data segment označava da li se može pisati u njega (nikad se ne može pisati u code segment, a uvijek se može čitati iz data segmenta)
 | DC     | 2           | Direction/Conforming, za data segment označava smijer rasta segmenta (0 - gore, 1 - dole), za code segment: ako je 0 onda CPL mora biti jednak DPL, ako je 1 onda CPL može biti manji ili jednak DPL
 | E      | 3           | Executable, ako je 0 onda se radi o data segmentu, ako je 1 onda se radi o code segmentu
+
+
+## Paging
+
+| Skraćenica | Puni naziv
+| :--------: | :----------
+| PD         | Page Directory
+| PT         | Page Table
+| PDE        | Page Directory Entry 
+| PTE        | Page Table Entry
+| PF         | Page Frame
+
+| Termin          | Pojašnjenje
+| --------------- | -----------
+| direktorij      | 
+| stranica (page) | 
+| okvir (frame)   | 
+| PD              |
+| PDE             |
+| PT              |
+| PTE             |
+
+### PDE
+| Okvir |  OS  |  G   |  S   |  D   |  A   | PCD  | PWT  |  U   | R/W  |  P   |
+| :---: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: |
+| (20b) | (3b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) |
+
+### Polja PDE
+| Polje | Veličina | Naziv              | Pojašnjenje |
+| :---: | :------: | ------------------ | ----------- |
+| Okvir | 20b      | Okvir              | redni broj okvira u fizičkom memorijskom prostoru<br>ako je S bit 0 koristi se svih 20 bita<br>ako je S bit 1 koristi se godnjih 10 bita
+| OS    | 3b       | Operating System   | ignorisani od strane hardvera, te ih OS može koristiti kako želi
+| G     | 1b       | Global             | određuje da li je mapiranje globalno<br>ako PGE bit registra `%cr4` ima vrijednost 0 ovaj bit se ignoriše
+| S     | 1b       | Size               | diktira veličinu stranice<br>vrijednost 0 -> veličina stranice je 4kB<br>vrijednost 1 -> veličina stranice je 4MB<br>ako PSE (4.) bit registra `%cr4` ima vrijednost 0 onda se ovaj bit ignoriše
+| D     | 1b       | Dirty              | govori da li je softver pisao u ovo mapiranje<br>ako ovaj entry pokazuje na PT, onda se ovaj bit ignoriše
+| A     | 1b       | Accessed           | govori da li je softver pristupio ovom mapiranju
+| PCD   | 1b       | Page Cache Disable | [Intel](../Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf) kaže _"indirectly determines the memory type used to access the 4-MByte page referenced by this entry (see Section 5.6)"_, šta god to značilo
+| PWT   | 1b       | Page Write-Through | [Intel](../Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf) kaže _"indirectly determines the memory type used to access the 4-MByte page referenced by this entry (see Section 5.6)"_, šta god to značilo
+| U     | 1b       | User               | određuje da li procesor ima pristup ovom mapiranju ukoliko je u user modu
+| R/W   | 1b       | Read/Write         | određuje da li se u ovom mapiranju mogu pisati/čitati podaci
+| P     | 1b       | Present            | određuje da li se dato mapiranje koristi
+
+### PTE
+| Okvir |  OS  |  G   | PAT  |  D   |  A   |  C   |  W   |  U   | R/W  |  P   |
+| :---: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: |
+| (20b) | (3b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) |
+
+### Polja PTE
+| Polje | Veličina | Naziv                | Pojašnjenje |
+| :---: | :------: | -------------------- | ----------- |
+| Okvir | 20b      | Okvir                | redni broj okvira u fizičkom memorijskom prostoru<br>ako je S bit 0 koristi se svih 20 bita<br>ako je S bit 1 koristi se godnjih 10 bita
+| OS    | 3b       | Operating System     | ignorisani od strane hardvera, te ih OS može koristiti kako želi
+| G     | 1b       | Global             | određuje da li je mapiranje globalno<br>ako PGE bit registra `%cr4` ima vrijednost 0 ovaj bit se ignoriše
+| PAT   | 1b       | Page Attribute Table | [Intel](../Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf) kaže _"If the PAT is supported, indirectly determines the memory type used to access the 4-KByte page referenced by this entry (see Section 5.9.2); otherwise, reserved (must be 0)"_, šta god to značilo
+| D     | 1b       | Dirty                | govori da li je softver pisao u ovo mapiranje
+| A     | 1b       | Accessed             | govori da li je softver pristupio ovom mapiranju
+| PCD   | 1b       | Page Cache Disable   | [Intel](../Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf) kaže _"indirectly determines the memory type used to access the 4-MByte page referenced by this entry (see Section 5.6)"_, šta god to značilo
+| PWT   | 1b       | Page Write-Through   | [Intel](../Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf) kaže _"indirectly determines the memory type used to access the 4-MByte page referenced by this entry (see Section 5.6)"_, šta god to značilo
+| U     | 1b       | User                 | određuje da li procesor ima pristup ovom mapiranju ukoliko je u user modu
+| R/W   | 1b       | Read/Write           | određuje da li se u ovom mapiranju mogu pisati/čitati podaci
+| P     | 1b       | Present              | određuje da li se dato mapiranje koristi
