@@ -20,6 +20,7 @@
 | sektor         | kontinualan dio memorije na disku
 
 
+
 # Asembler
 
 | Skraćenica | Puni naziv
@@ -44,6 +45,7 @@
 | long          | 4 bajta (4B), 32 bita (32b)
 
 
+
 # Adresiranje
 
 | Termin                    | Pojašnjenje
@@ -54,6 +56,7 @@
 | logička adresa            | adresa iz logičkog adresnog prostora, adresa iz instrukcije
 | linearna adresa           | logička adresa nakon segmentiranja
 | fizička adresa            | adresa iz fizičkog adresnog prostora, adresa u fizičkog memoriji
+
 
 ## Segmentiranje
 
@@ -72,11 +75,11 @@
 | (segment) selektor        | segmentni registar, zajedno sa keširanim deskriptorom
 
 ### Pojašnjenja polja selektora
-
-| Deskriptor polje | Veličina | Naziv                      | Pojašnjenje
-| :--------------: | :------: | :------------------------: | -----------
-| Index            | 13b      | Index                      | predstavlja indeks deskriptora u GDT sa kojim je dati selektor asociran, a time označava i segment sa kojim je asociran
-| T(I)             | 1b       | Table (Indicator)          | određuje koji se descriptor table koristi (0 - GDT, 1 - LDT)
+| Deskriptor polje | Veličina | Naziv                              | Pojašnjenje
+| :--------------: | :------: | :--------------------------------: | -----------
+| Index            | 13b      | Index                              | predstavlja indeks deskriptora u GDT sa kojim je dati selektor asociran, a time označava i segment sa kojim je asociran
+| T(I)             | 1b       | Table (Indicator)                  | određuje koji se descriptor table koristi (0 - GDT, 1 - LDT)
+| RPL/CPL          | 2b       | Requested/Current Privilege Level  | za sve selektora osim `%cs` je RPL i određuje nivo privilegije potreban da se pristupi datom segment deskriptoru<br>za selektor `%cs` je CPL i određuje trenutni nivo privilegija koje ima procesor
 
 ### Pojašnjenja polja deskriptora
 | Deskriptor polje | Veličina | Naziv                      | Pojašnjenje
