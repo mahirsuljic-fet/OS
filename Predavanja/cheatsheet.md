@@ -78,7 +78,7 @@
 | Deskriptor polje | Veličina | Naziv                              | Pojašnjenje
 | :--------------: | :------: | :--------------------------------: | -----------
 | Index            | 13b      | Index                              | predstavlja indeks deskriptora u GDT sa kojim je dati selektor asociran, a time označava i segment sa kojim je asociran
-| T(I)             | 1b       | Table (Indicator)                  | određuje koji se descriptor table koristi (0 - GDT, 1 - LDT)
+| T(I)             | 1b       | Table (Indicator)                  | određuje koji se descriptor table koristi (0 - GDT, 1 - LDT)<br>mi ovaj bit označavamo sa T, ali u literaturi se može naći i oznaka TI
 | RPL/CPL          | 2b       | Requested/Current Privilege Level  | za sve selektora osim `%cs` je RPL i određuje nivo privilegije potreban da se pristupi datom segment deskriptoru<br>za selektor `%cs` je CPL i određuje trenutni nivo privilegija koje ima procesor
 
 ### Pojašnjenja polja deskriptora
@@ -86,7 +86,7 @@
 | :--------------: | :------: | :------------------------: | -----------
 | Base             | 32b      | Base                       | adresa koja označava početak segmenta
 | Limit            | 20b      | Limit                      | adresa koja označava kraj segmenta
-| G (1b)           | 1b       | Granularity                | određuje minimalnu i maksimalnu veličinu segmenta, kao i veličinu koraka kojim se veličina segmenta može regulisati <br> (0 - 0B do 1MB, korak 1B &nbsp;&thinsp;\|&nbsp;&thinsp; 1 - 4kB do 4GB, korak 4kB)
+| G                | 1b       | Granularity                | određuje minimalnu i maksimalnu veličinu segmenta, kao i veličinu koraka kojim se veličina segmenta može regulisati <br> (0 - 0B do 1MB, korak 1B &nbsp;&thinsp;\|&nbsp;&thinsp; 1 - 4kB do 4GB, korak 4kB)
 | D/B              | 1b       | Default/Big                | određuje da li je segment 16-bit (vrijednost 0) ili 32-bit (vrijednost 1)
 | L                | 1b       | Long                       | određuje da li je segment 64-bitni, ukoliko je vrijednost 1, D/B mora biti 0 (ne koristimo 64-bit pa je uvijek 0)
 | AVL              | 1b       | Available                  | koristi softver, ne koristi hardver
@@ -125,7 +125,7 @@
 | PTE             |
 
 ### PDE
-| Okvir |  OS  |  G   |  S   |  D   |  A   | PCD  | PWT  |  U   | R/W  |  P   |
+| Okvir |  OS  |  G   | (P)S |  D   |  A   | PCD  | PWT  |  U   | R/W  |  P   |
 | :---: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: |
 | (20b) | (3b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) | (1b) |
 
@@ -135,7 +135,7 @@
 | Okvir | 20b      | Okvir              | redni broj okvira u fizičkom memorijskom prostoru<br>ako je S bit 0 koristi se svih 20 bita<br>ako je S bit 1 koristi se godnjih 10 bita
 | OS    | 3b       | Operating System   | ignorisani od strane hardvera, te ih OS može koristiti kako želi
 | G     | 1b       | Global             | određuje da li je mapiranje globalno<br>ako PGE bit registra `%cr4` ima vrijednost 0 ovaj bit se ignoriše
-| S     | 1b       | Size               | diktira veličinu stranice<br>vrijednost 0 -> veličina stranice je 4kB<br>vrijednost 1 -> veličina stranice je 4MB<br>ako PSE (4.) bit registra `%cr4` ima vrijednost 0 onda se ovaj bit ignoriše
+| (P)S  | 1b       | (Page) Size        | diktira veličinu stranice<br>vrijednost 0 -> veličina stranice je 4kB<br>vrijednost 1 -> veličina stranice je 4MB<br>ako PSE (4.) bit registra `%cr4` ima vrijednost 0 onda se ovaj bit ignoriše<br>mi ovaj bit označavamo sa S, ali u literaturi se može naći i oznaka PS
 | D     | 1b       | Dirty              | govori da li je softver pisao u ovo mapiranje<br>ako ovaj entry pokazuje na PT, onda se ovaj bit ignoriše
 | A     | 1b       | Accessed           | govori da li je softver pristupio ovom mapiranju
 | PCD   | 1b       | Page Cache Disable | [Intel](../Literatura/Intel_64_and_IA-32_Architectures_Manual.pdf) kaže _"indirectly determines the memory type used to access the 4-MByte page referenced by this entry (see Section 5.6)"_, šta god to značilo
