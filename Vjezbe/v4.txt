@@ -1,0 +1,10 @@
+.stab i .stabstr sekcije se koriste za debugiranje (bitno, trebat ce nam kasnije)
+void i386_init(void) u fajlu init.c je efektivno main kernela
+
+Dodati liniju:
+cprintf("\n");
+prije linije
+cprintf("6828 decimal is %o octal!\n", 6828);
+u fajlu init.c
+
+Odgovore na pitanja napisati u neki fajl answers.txt i commitati na gitlab.
