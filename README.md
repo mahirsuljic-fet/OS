@@ -21,6 +21,10 @@ Kod i primjeri sa vježbi.
 ## [Labs](./Labs)
 Odgovori na pitanja iz zadaća (MIT lab-ova).
 
+### [Skripta za instalaciju/update okruženja](./getosshell.sh)
+Za pokretanje skripte koristi se komanda `. ./getosshell.sh` pri čemu je potrebno biti u direktoriji gdje se nalazi `getosshell.sh`.
+Skripta automatski skine najnoviju verziju okruženja, odradi sve što je potrebno i vrati terminal u direktoriju u kojoj je i bio.
+
 -------------------------
 
 ### [MIT 6.828](https://pdos.csail.mit.edu/6.828/2018/overview.html)
