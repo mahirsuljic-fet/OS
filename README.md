@@ -25,6 +25,10 @@ Odgovori na pitanja iz zadaća (MIT lab-ova).
 Za pokretanje skripte koristi se komanda `. ./getosshell.sh` pri čemu je potrebno biti u direktoriji gdje se nalazi `getosshell.sh`.
 Skripta automatski skine najnoviju verziju okruženja, odradi sve što je potrebno i vrati terminal u direktoriju u kojoj je i bio.
 
+### Komanda za brisanje NIX cache
+Ukoliko se skine okruženje i u nekog kraćem periodu (npr. 1 dan) izađe nova verzija okruženja neće biti moguće preuzeti novu verziju dok ne prođe taj period.
+Čekanje se može zaobići brisanjem cache-a komandom `rm -rf ~/.cache/nix/`.
+
 -------------------------
 
 ### [MIT 6.828](https://pdos.csail.mit.edu/6.828/2018/overview.html)
