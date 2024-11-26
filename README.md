@@ -18,7 +18,7 @@ Profesorove prezentacije iz predmeta.
 ## [Vjezbe](./Vjezbe)
 Kod i primjeri sa vježbi.
 
-## [Labs](./Labs)
+## [Labs](./Lab)
 Odgovori na pitanja iz zadaća (MIT lab-ova).
 
 ### [Skripta za instalaciju/update okruženja](./getosshell.sh)
