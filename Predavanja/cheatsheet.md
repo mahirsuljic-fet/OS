@@ -167,7 +167,7 @@
 | P     | 1b       | Present              | određuje da li se dato mapiranje koristi
 
 
-## Prekidi
+# Prekidi
 
 | Skraćenica | Puni naziv
 | :--------: | :---------
@@ -181,7 +181,7 @@
 | Interrupt Descriptor | binarna struktura podataka koja opisuje kako će se tretiraju neki prekid.
 
 
-## Procesi
+# Procesi
 
 | Skraćenica | Puni naziv
 | :--------: | :---------
