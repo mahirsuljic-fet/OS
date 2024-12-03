@@ -67,6 +67,7 @@
 | LDT        | Local Descriptor Table
 | DPL        | Descriptor Privilege Level
 | RPL        | Requested Privilege Level
+| GPF        | General Protection Fault
 
 | Termin                    | Pojašnjenje
 | ------------------------- | -----------
@@ -76,6 +77,7 @@
 | CPL                       | nivo privilegija koji trenutno ima procesor<br>prva 3 bita registra `%cs`
 | RPL                       | traženi nivo privilegija pri pristupu nekom segmentu<br>prva 3 bita selektora `%ss`, `%ds`, `%es`, `%fs` i `%gs` (svih osim `%cs`)
 | DPL                       | potreban nivo privilegija da se pristupi segmentu koji opisuje dati deskriptor
+| GPF                       | iznimka koja se dešava pri nedozvoljenom pristupu memoriji
 
 ### Pojašnjenja polja selektora
 | Deskriptor polje | Veličina | Naziv                              | Pojašnjenje
