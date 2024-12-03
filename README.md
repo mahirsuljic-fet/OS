@@ -37,6 +37,8 @@ Ukoliko se skine okruženje i u nekog kraćem periodu (npr. 1 dan) izađe nova v
 
 ### [Intel 80386 Reference Programmer's Manual](https://pdos.csail.mit.edu/6.828/2018/readings/i386/toc.htm)
 
+### [x86 instrukcije (MIT)](https://pdos.csail.mit.edu/6.828/2018/readings/i386/c17.htm)
+
 ### [x86 instrukcije (felixcloutier)](https://www.felixcloutier.com/x86/)
 
 ### [x86 instrukcije (c9x)](https://c9x.me/x86/)
