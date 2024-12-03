@@ -71,15 +71,18 @@
 | Termin                    | Pojašnjenje
 | ------------------------- | -----------
 | segment                   | kontinualni blok memorije korišten pri segmentiranju
-| (segment) deskriptor      | 64-bitna struktura koja opisuje segment
+| (segment) deskriptor      | 64-bitna binarna struktura podataka koja opisuje segment
 | (segment) selektor        | segmentni registar, zajedno sa keširanim deskriptorom
+| CPL                       | nivo privilegija koji trenutno ima procesor<br>prva 3 bita registra `%cs`
+| RPL                       | traženi nivo privilegija pri pristupu nekom segmentu<br>prva 3 bita selektora `%ss`, `%ds`, `%es`, `%fs` i `%gs` (svih osim `%cs`)
+| DPL                       | potreban nivo privilegija da se pristupi segmentu koji opisuje dati deskriptor
 
 ### Pojašnjenja polja selektora
 | Deskriptor polje | Veličina | Naziv                              | Pojašnjenje
 | :--------------: | :------: | :--------------------------------: | -----------
 | Index            | 13b      | Index                              | predstavlja indeks deskriptora u GDT sa kojim je dati selektor asociran, a time označava i segment sa kojim je asociran
 | T(I)             | 1b       | Table (Indicator)                  | određuje koji se descriptor table koristi (0 - GDT, 1 - LDT)<br>mi ovaj bit označavamo sa T, ali u literaturi se može naći i oznaka TI
-| RPL/CPL          | 2b       | Requested/Current Privilege Level  | za sve selektora osim `%cs` je RPL i određuje nivo privilegije potreban da se pristupi datom segment deskriptoru<br>za selektor `%cs` je CPL i određuje trenutni nivo privilegija koje ima procesor
+| RPL/CPL          | 2b       | Requested/Current Privilege Level  | određuje trenutni nivo privilegija koje ima procesor
 
 ### Pojašnjenja polja deskriptora
 | Deskriptor polje | Veličina | Naziv                      | Pojašnjenje
@@ -116,13 +119,12 @@
 
 | Termin          | Pojašnjenje
 | --------------- | -----------
-| direktorij      | 
-| stranica (page) | 
-| okvir (frame)   | 
-| PD              |
-| PDE             |
-| PT              |
-| PTE             |
+| stranica (page) | kontinualan blok virtuelne memorije
+| okvir (frame)   | kontinualan blok fizičke memorije
+| PD              | niz PDE-ova
+| PDE             | binarna struktura podataka koja opisuje PT-ove
+| PT              | niz PTE-ova
+| PTE             | stuktura podataka koja opisuje mapiranje u okvire
 
 ### PDE
 | Okvir |  OS  |  G   | (P)S |  D   |  A   | PCD  | PWT  |  U   | R/W  |  P   |
@@ -163,3 +165,47 @@
 | U     | 1b       | User                 | određuje da li procesor ima pristup ovom mapiranju ukoliko je u user modu
 | R/W   | 1b       | Read/Write           | određuje da li se u ovom mapiranju mogu pisati/čitati podaci
 | P     | 1b       | Present              | određuje da li se dato mapiranje koristi
+
+
+## Prekidi
+
+| Skraćenica | Puni naziv
+| :--------: | :---------
+| ISR        | Interrupt Service Routine
+| IDT        | Interrupt Descriptor Table
+
+| Termin               | Pojašenjenje
+| -------------------- | ------------
+| ISR                  | funkcija koja radi interrupt handle
+| IDT                  | tabela interrupt deskriptora
+| Interrupt Descriptor | binarna struktura podataka koja opisuje kako će se tretiraju neki prekid.
+
+
+## Procesi
+
+| Skraćenica | Puni naziv
+| :--------: | :---------
+| TSS        | Task State Segment
+| PCB        | Process Control Block
+| PID        | Process IDentifier
+| PPID       | Parent Process IDentifier
+
+| Termin               | Pojašenjenje
+| -------------------- | ------------
+| TSS                  | 64-bitna binarna struktura podataka u kojoj se sprema stanje programa (procesora, tj. registara)
+| PCB                  | struktura podataka koja opisuje proces
+| PID                  | broj, jedinstveni identifikator svakog procesa
+| Fork                 | funkcija koja pravi novi proces od već postojećeg procesa
+| Shell                | proces koji omogućava kreiranje novih procesa
+| Parent process       | proces od kojeg je nastao drugi proces (child process)
+| Child process        | proces koji je nastao od drugog procesa (parent process)
+| Orphan process       | proces kojem se parent process prestao izvršavati
+
+| Stanja procesa | Opis
+| :------------: | ----
+| UNUSED         | ne koristi se, slobodno mjesto za neki proces
+| EMBRYO         | procesa se pravi, ako fork ne uspije vraća u UNUSED, ako fork uspije prelazi u RUNNABLE
+| RUNNABLE       | proces spreman na izvršavanje
+| RUNNING        | proces se izvršava
+| ZOMBIE         | proces prestaje sa izvršavanjem, sistemskim pozivom `wait` prelazi u UNUSED
+| SLEEPING       | izvršio se "spori" sistemski poziv i proces čeka (npr. čeka podatke sa mreže)
