@@ -178,7 +178,7 @@
 | -------------------- | ------------
 | ISR                  | funkcija koja radi interrupt handle
 | IDT                  | tabela interrupt deskriptora
-| Interrupt Descriptor | binarna struktura podataka koja opisuje kako će se tretiraju neki prekid.
+| Interrupt Descriptor | binarna struktura podataka koja opisuje kako će se tretirati neki prekid
 
 
 # Procesi
