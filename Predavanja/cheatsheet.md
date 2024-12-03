@@ -99,12 +99,12 @@
 | Type             | 4b       | Type                       | vrsta segmenta i kontrola pristupa (biti E\|DC\|RW\|A)
 
 ### Biti Type polja segment deskriptora
-| Oznaka | Indeks      | Pojašnjenje
-| :----: | :---------: | -----------
-| A      | 0           | Accessed, hardver postavi na 1 kada se pristupi segmentu, softver postavi na 0
-| RW     | 1           | Read/Write, za code segment označava da li se može čitati iz njega, za data segment označava da li se može pisati u njega (nikad se ne može pisati u code segment, a uvijek se može čitati iz data segmenta)
-| DC     | 2           | Direction/Conforming, za data segment označava smijer rasta segmenta (0 - gore, 1 - dole), za code segment: ako je 0 onda CPL mora biti jednak DPL, ako je 1 onda CPL može biti manji ili jednak DPL
-| E      | 3           | Executable, ako je 0 onda se radi o data segmentu, ako je 1 onda se radi o code segmentu
+| Oznaka | Bit | Pojašnjenje
+| :----: | :-: | -----------
+| A      |  0  | Accessed, hardver postavi na 1 kada se pristupi segmentu, softver postavi na 0
+| RW     |  1  | Read/Write, za code segment označava da li se može čitati iz njega, za data segment označava da li se može pisati u njega (nikad se ne može pisati u code segment, a uvijek se može čitati iz data segmenta)
+| DC     |  2  | Direction/Conforming, za data segment označava smijer rasta segmenta (0 - gore, 1 - dole), za code segment: ako je 0 onda CPL mora biti jednak DPL, ako je 1 onda CPL može biti manji ili jednak DPL
+| E      |  3  | Executable, ako je 0 onda se radi o data segmentu, ako je 1 onda se radi o code segmentu
 
 
 ## Paging
@@ -116,15 +116,17 @@
 | PDE        | Page Directory Entry 
 | PTE        | Page Table Entry
 | PF         | Page Frame
+| PDBR       | Page Directory Base Register
 
-| Termin          | Pojašnjenje
-| --------------- | -----------
-| stranica (page) | kontinualan blok virtuelne memorije
-| okvir (frame)   | kontinualan blok fizičke memorije
-| PD              | niz PDE-ova
-| PDE             | binarna struktura podataka koja opisuje PT-ove
-| PT              | niz PTE-ova
-| PTE             | stuktura podataka koja opisuje mapiranje u okvire
+| Termin            | Pojašnjenje
+| ----------------- | -----------
+| stranica (page)   | kontinualan blok virtuelne memorije
+| okvir (frame, PF) | kontinualan blok fizičke memorije
+| PD                | niz PDE-ova
+| PDE               | binarna struktura podataka koja opisuje PT-ove
+| PT                | niz PTE-ova
+| PTE               | stuktura podataka koja opisuje mapiranje u okvire
+| PDBR              | drugi naziv na `%cr3`
 
 ### PDE
 | Okvir |  OS  |  G   | (P)S |  D   |  A   | PCD  | PWT  |  U   | R/W  |  P   |
