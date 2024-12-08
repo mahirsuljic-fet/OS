@@ -1,8 +1,5 @@
 # Physical Page Management
 
-### Note
-Također pogledati exercise 7 iz [`answers_1.md`](./answers_1.md).
-
 ## Exercise 1
 
 ### `boot_alloc`
