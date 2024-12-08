@@ -1,4 +1,6 @@
 # The ROM BIOS
+
+## Exercise 2
 Prilikom pokretanja računara BIOS postavlja radno okruženje.
 BIOS inicijalizira stack u low memory dijelu adresnog prostora.
 Dalje vrši inicijalizaciju IDT i GDT, te prelazi u protected mod.
@@ -7,7 +9,9 @@ Kasnije počne tražiti boot sektor. Kada ga nađe učita boot loader sa diska u
 Kada BIOS preda kontrolu boot loaderu `%eip` ima vrijednost `0x7c00`, što je adresa prve instrukcije boot loadera.
 
 # The Boot Loader
-Razlika između orginalnog boot loader koda ([`boot.S`](../boot/boot.S)) i disasembliranog boot loader koda ([`boot.asm`](../obj/boot/boot.asm)) su sljedeće:
+
+## Exercise 3
+Razlika između orginalnog boot loader koda ([`boot.S`](../boot/boot.S)) i disasembliranog boot loader koda (`boot.asm`) su sljedeće:
 - `boot.asm` pored asembler koda koji se nalazi u `boot.S`, također sadrži i kod iz [`main.c`](../boot/main.c) koji je kompajliran u asembler, dakle nema nerasjašnjenih simbola
 - `boot.asm` pored instrukcija također ima označene adrese instukcija i drugih labela, i hex zapis instrukcija \
   (_npr_. `cli` je `0xfa` i nalazi se na adresi `0x7c00`)
@@ -67,7 +71,7 @@ Sa `outb(0x1F7, 0x20)` se određuje komanda koja će se koristiti, u ovom sluča
 Izrazom `insl(0x1F0, dst, SECTSIZE/4)` se čita `SECTSIZE/4` (128) bajti sa porta, adrese `0x1f0` (dakle, sa diska) i pohranjuje na adresu `dst`.
 
 Petlja koja čita ostatak kernela sa diska je:
-```
+``` c
 for (; ph < eph; ph++)
 	readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
 ```
@@ -98,7 +102,7 @@ Unutar ELF headera se nalaze informacije o program headerima kernela.
 Unutar svakog program headera se nalazi adresa gdje počinje korespondirajuća sekcija i njena veličina.
 Dakle, boot loader iz ELF headera pročita veličinu svih sekcija kernela i učita sve sektore koji sadrže kernel.
 
-### Exercise 5
+## Exercise 5
 Prva instrukcija koja ne uradi ono što treba je `lgdt gdtdesc` jer učitaje GDT sa pogrešnog mjesta i time u GDTR ne budu tačne vrijednosti.
 
 Za `-Ttext 0x0000` gdje je GDT `00000064 <gdtdesc>:` dobijeni ispis za taj dio memorije je:
@@ -127,7 +131,7 @@ Vrijednost `%cs` za `-Ttext 0x7C00` nakon navedene instrukcije:
 cs             0x8                 8
 ```
 
-### Exercise 6
+## Exercise 6
 Stanje memorije pri početku izvršavanja boot loadera:
 ```
 0x100000:       0x00000000      0x00000000      0x00000000      0x00000000
@@ -144,7 +148,48 @@ U prvom slučaju ništa nije učitano u memoriju, dok u drugom slučaju se na ad
 
 # The Kernel
 
-### Exercise 7
+## Exercise 7
+U fajlu [`entry.S`](../kern/entry.S) se uključuje straničenje.
+Prije nego što se uključi, potrebno je podesiti page directory i odgovarajuće page table-e.
+Registar `%cr3` treba da sadrži adresu od page directory-a koji se trenutno koristi.
+Ispod je dio koda koji to radi:
+```
+	movl	$(RELOC(entry_pgdir)), %eax
+	movl	%eax, %cr3
+```
+Iz koda se može zaključiti da je `entry_pgdir` simbol koji pokazuje na page directory koji će se koristiti.
+Taj simbol je niz `pde_t` definisan u [`entrypgdir.c`](../kern/entrypgdir.c):
+```
+pde_t entry_pgdir[NPDENTRIES]
+  = {
+      // Map VA's [0, 4MB) to PA's [0, 4MB)
+      [0]
+      = ((uintptr_t)entry_pgtable - KERNBASE) + PTE_P,
+      // Map VA's [KERNBASE, KERNBASE+4MB) to PA's [0, 4MB)
+      [KERNBASE >>
+        PDXSHIFT]
+      = ((uintptr_t)entry_pgtable - KERNBASE) + PTE_P + PTE_W
+    };
+```
+i definiše dva mapiranja:
+- od `0x0` do `4MB` virtuelne memorije u `0x0` do `4MB` fizičke memorije
+- od `KERNBASE` do `KERNBASE + 4MB` virtuelne memorije u `0x0` do `4MB` fizičke memorije
+
+Dakle, nakon uključivanja straničenja prvim 4MB fizičke memorije se može pristupati sa niskih adresa (4MB od `0x0`) ili visokih adresa (4MB od `KERNBASE`).
+Kernel je linkan na adresu `KERNBASE + 1MB`, što znači da će simbol `entry_pgdir` biti iznad te adrese, 
+a budući da u `%cr3` mora biti fizička adresa page directory-a, potrebno je relocirati taj simbol pomoću makroa `RELOC`.
+
+Straničenje se uključuju postavljanjem paging bita registra `%cr0` (`CR0_PG`) na 1.
+Ispod je dio koda koji uljučuje straničenje:
+```
+	movl	%cr0, %eax
+	orl	$(CR0_PE|CR0_PG|CR0_WP), %eax
+	movl	%eax, %cr0
+```
+
+Nakon ove instrukcije uključeno je straničenje.
+Pomoću GDB se može dokazati je straničenje uključeno provjeravajući memoriju na niskim i visokim adresama prije i posle straničenja.
+
 Memorija prije uključivanja straničenja:
 ```
 (gdb) x/8x 0x00100000
@@ -164,10 +209,24 @@ Memorija nakon uključivanja straničenja:
 0xf0100010 <entry+4>:           0x34000004      0x0000b812      0x220f0011      0xc0200fd8
 ```
 
-Razlog zašto su ispisi nakon uključivanja straničenja isti je činjenica da su virtuelne adrese od `0xf0000000` do `0xffffffff`
-mapirane u fizičke adrese od `0x00000000` do `0x0fffffff`.
+Razlog zašto su ispisi nakon uključivanja straničenja isti je činjenica da je 4MB virtuelne memorije od `0xf0000000` (`KERNBASE`)
+mapirano u 4MB fizičke memorije od `0x00000000`.
 
-Prva instrukcija koja neće raditi kako treba je `jmp *%eax`.
+Ukoliko se na uključi straničenje, prva instrukcija koja neće raditi kako treba je `jmp *%eax`.
+Ovo se može i testirati pomoću GDB ukoliko se izbriše/zakomentariše instrukcija `movl %cr0, %eax`:
+```
+=> 0x10002a:    jmp    *%eax
+0x0010002a in ?? ()
+(gdb) info register eax
+eax            0xf010002c          -267386836
+(gdb) si
+=> 0xf010002c <relocated>:      Error while running hook_stop:
+Cannot access memory at address 0xf010002c
+```
+
+Također, ukoliko ne bi bilo mapiranja `[0, 4MB)` virtuelne u `[0, 4MB)` fizičke memorije, 
+jump instrukcija nakon uključivanja straničenja ne bi uspjela (pogledati ***Question 6*** iz [`answers_2`](./answers_2.md)).
+
 
 ## Formatted Printing to the Console
 
@@ -175,7 +234,7 @@ Prva instrukcija koja neće raditi kako treba je `jmp *%eax`.
 [`console.c`](../kern/console.c) eksportuje funkciju `cputchar` koja se koristi za printanje karaktera na terminal.
 
 ### 2. Explain the following from `console.c`:
-```
+``` c
 	if (crt_pos >= CRT_SIZE) {
 		int i;
 		memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
@@ -189,7 +248,7 @@ Ako cursor pređe kraj terminala, svi redovi se pomjere za jedan (prvi ispisani 
 zatim se zadnji red (gdje je cursor) ispunjaje praznim mjestima i cursor se pomijera na početak reda.
 
 ### 3. Trace the execution of the following code step-by-step:
-```
+``` c
 int x = 1, y = 3, z = 4;
 cprintf("x %d, y %x, z %d\n", x, y, z);
 ```
@@ -252,7 +311,7 @@ Proces se ponavlja za ostale karaktere iz `fmt`. Pozivi glavnih funkcija i njiho
 
 
 ### 4. Run the following code.
-```
+``` c
     unsigned int i = 0x00646c72;
     cprintf("H%x Wo%s", 57616, &i);
 ```
@@ -272,7 +331,7 @@ Da je x86 big-endian, da bi se dobio isti ispis, vrijednost `i` bi trebala biti 
 
 
 ### 5. In the following code, what is going to be printed after 'y='? (note: the answer is not a specific value.) Why does this happen?
-```
+``` c
     cprintf("x=%d y=%d", 3);
 ```
 
@@ -323,8 +382,8 @@ Ukoliko se navede jedna cifra posle `$$` obojat će se samo tekst,
 a ako se navedu dvije cifre posle `$$` obojat će se i tekst i pozadina iza teksta.
 Kraj bojanja se označava sa `$$`. Ukoliko se bojanje ne zatvori cijeli ostatak string literala će biti obojen navedenom bojom. Default boja se vraća pri izlazku iz funkcije.
 
-Primjer dodavanja boje teksta: \
-```
+Primjer dodavanja boje teksta:
+``` c
 cprintf("$$1int  -> %d$$ | "
 	    "$$2hex  -> %x$$ | "
 	    "$$3oct  -> %o$$ | "
@@ -338,8 +397,8 @@ cprintf("$$1int  -> %d$$ | "
 	    1, 0x2, 03, '4', "5", -6, x, &x);
 ```
 
-Primjer dodavanja boje teksta i pozadine: \
-```
+Primjer dodavanja boje teksta i pozadine:
+``` c
 cprintf("$$00bg -> 0$$ | "
 	    "$$10bg -> 1$$ | "
         "$$20bg -> 2$$ | "
@@ -373,8 +432,8 @@ Dakle, kernel stack je velik 32kB.
 Stack pointer (`%esp`) pokazuje na vrh (najvišu adresu) ovog dijela memorije, 
 konkretno na adresu `0xf0111000` (pročitana instrukcija iz `kernel.asm` i vrijednost `%esp` potvrđena koristeći GDB).
 
-Relecantan dio koda iz `kernel.asm`:
-```
+Relevantan dio koda iz `kernel.asm`:
+``` asm
 	# Set the stack pointer
 	movl	$(bootstacktop),%esp
 f0100034:	bc 00 10 11 f0       	mov    $0xf0111000,%esp
@@ -420,7 +479,7 @@ Ova limitacija bi se mogla prevazići ukoliko bi se na stack kao zadnji argument
 
 ## Exercise 11
 
-```
+``` c
 #define BT_ARG_NUM 5 // number of arguments mon_backtrace prints
 
 int mon_backtrace(int argc, char** argv, struct Trapframe* tf)
@@ -456,7 +515,7 @@ int mon_backtrace(int argc, char** argv, struct Trapframe* tf)
 `__STAB_*` su varijable koje pravi linker skripta [`kernel.ld`](../kern/kernel.ld) i označavaju početak i kraj `.stab` i `.stabstr` sekcija kernela (`__STAB_BEGIN__`, `__STAB_END__`, `__STABSTR_BEGIN__` i `__STABSTR_END_` respektivno). 
 
 Relevantan kod iz linker skripte `kernel.ld`:
-```
+``` ld
 	/* Include debugging information in kernel memory */
 	.stab : {
 		PROVIDE(__STAB_BEGIN__ = .);
@@ -564,7 +623,7 @@ Kolona `n_desc` predstavlja dodatni opis, npr. u redu `518` možemo zaključiti 
 Kolona `n_strx` predstavlja broj bajta odakle dati string počinje u `.stabstr` sekciji.
 
 Kompajliranjem `init.c` sa `gcc -pipe -nostdinc -O2 -fno-builtin -I. -MD -Wall -Wno-format -DJOS_KERNEL -gstabs -c -S kern/init.c`, pogledom u dobijeni `init.s` dobija se:
-```
+``` asm
 	.file	"init.c"
 	.stabs	"kern/init.c",100,0,2,.Ltext0
 	.text
@@ -604,7 +663,7 @@ test_backtrace:
 Iz čega se vidi kako se popunjavaju `.stab` i `.stabstr` sekcije.
 
 Na osnovu ovih informacija može se poboljšati implementacija funkcija `mon_backtrace` tako da ispisuje ime source fajla, ime funkcije, broj linije i broj bajta poziva funkcije:
-```
+``` c
 int mon_backtrace(int argc, char** argv, struct Trapframe* tf)
 {
   struct Eipdebuginfo eipinfo;
@@ -628,7 +687,7 @@ int mon_backtrace(int argc, char** argv, struct Trapframe* tf)
 }
 ```
 
-Ispis poboljšanje `mon_backtrace` funkcije:
+Ispis poboljšane `mon_backtrace` funkcije:
 ```
 Stack backtrace:
   ebp f0110f18  eip f010008f  args 00000000 00000000 00000000 00000000 f010096b
