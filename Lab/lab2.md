@@ -1,5 +1,8 @@
 # Physical Page Management
 
+### Note
+Također pogledati exercise 7 iz [`answers_1.md`](./answers_1.md).
+
 ## Exercise 1
 
 ### `boot_alloc`
@@ -528,7 +531,7 @@ Oduzimanjem dobijene vrijednosti i `KERNBASE` se dobija količina memorije koja 
 Korištenjem funkcija `print_mapping_info` i `printpd` (implementirane u ***Other*** dijelu odgovora) na sljedeći način:
 ``` c
                                     ...
-  print_mapping_info("kern_pgdir", (uintptr_t)kern_pgdir, NPDENTRIES * 4);
+  print_mapping_info("kern_pgdir", (uintptr_t)UVPT, NPDENTRIES * 4);
   kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
   printpd(kern_pgdir);
                                     ...
@@ -551,16 +554,16 @@ dobija se sljedeći ispis:
 +-----------------------------+
 | kern_pgdir                  |
 |-----------------------------|
-| BASE           | 0xf011a000 |
+| BASE           | 0xef400000 |
 | SIZE (BYTES)   |       4096 |
 | SIZE (PAGES)   |          1 |
 | SIZE (ENTRIES) |          1 |
-| BASE + SIZE    | 0xf011b000 |
+| BASE + SIZE    | 0xef401000 |
 +-----------------------------+
 +-------------------------------------------------------------+
 | ENTRY | ADDRESS    | G | PS | D | A | PCD | PWT | U | W | P |
 |-------------------------------------------------------------|
-|   957 | 0x0011a000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
+|   957 | 0x0011c000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
 +-------------------------------------------------------------+
                               ...                              
 +-----------------------------+
@@ -575,23 +578,23 @@ dobija se sljedeći ispis:
 +-------------------------------------------------------------+
 | ENTRY | ADDRESS    | G | PS | D | A | PCD | PWT | U | W | P |
 |-------------------------------------------------------------|
-|   957 | 0x0011a000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
+|   957 | 0x0011c000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
 |   956 | 0x003fd000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 1 | 1 |
 +-------------------------------------------------------------+
 +-----------------------------+
 | bootstack                   |
 |-----------------------------|
-| BASE           | 0xefff8000 |
+| BASE           | 0xefc00000 |
 | SIZE (BYTES)   |      32768 |
 | SIZE (PAGES)   |          8 |
 | SIZE (ENTRIES) |          1 |
-| BASE + SIZE    | 0xf0000000 |
+| BASE + SIZE    | 0xefc08000 |
 +-----------------------------+
 +-------------------------------------------------------------+
 | ENTRY | ADDRESS    | G | PS | D | A | PCD | PWT | U | W | P |
 |-------------------------------------------------------------|
 |   959 | 0x003fe000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 1 | 1 |
-|   957 | 0x0011a000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
+|   957 | 0x0011c000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
 |   956 | 0x003fd000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 1 | 1 |
 +-------------------------------------------------------------+
 +-----------------------------+
@@ -610,7 +613,7 @@ dobija se sljedeći ispis:
                               ...                              
 |   960 | 0x003ff000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 1 | 1 |
 |   959 | 0x003fe000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 1 | 1 |
-|   957 | 0x0011a000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
+|   957 | 0x0011c000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 0 | 1 |
 |   956 | 0x003fd000 | 0 |  0 | 0 | 0 |  0  |  0  | 1 | 1 | 1 |
 +-------------------------------------------------------------+
                               ...                              
@@ -621,16 +624,21 @@ Par napomena:
 - prikazani flagovi se odnose na PDE, tako da npr. `U` flag je uvijek setovan,
   ali to nužno ne znači da se cijeli asocirani page table može koristiti u user modu,
   nego se moraju provjeriti flagovi iz PTE
+- svaki PDE se koristi za mapiranje najviše 4MB memorije,
+  budući da PDE od 960 do 1023 mapiraju kontinualan blok memorije,
+  razmak između njihovih base adressa će biti 4MB (0x00400000)
 
 Iz čega se jednostavno mogu pročitati traženi podaci.
 
 | Entry | Base Virtual Address | Points to (logically)
 | :---: | :------------------: | ------------------------------------
-| 1023  | 0xffffefff           | fizička memorija
+| 1023  | 0xffc00000           | fizička memorija (zadnjih 4MB)
+|  960  | 0xff800000           | fizička memorija (predzadnjih 4MB)
 |  ...  |     ...              | -\|\|-
-|  960  | 0xf0000000           | fizička memorija
-|  959  | 0xefff8000           | Kernel Stack (`bootstack`)
-|  957  | 0xf011a000           | Kernel Page directory (`kern_pgdir`)
+|  960  | 0xf0400000           | fizička memorija (drugih 4MB)
+|  960  | 0xf0000000           | fizička memorija (prvih 4MB)
+|  959  | 0xefc00000           | Kernel Stack (`bootstack`)
+|  957  | 0xef400000           | Kernel Page directory (`kern_pgdir`)
 |  956  | 0xef000000           | Physical Page State Array (`pages`)
 
 
