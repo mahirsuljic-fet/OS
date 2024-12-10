@@ -221,6 +221,31 @@ Koristi se bilo kada kada je potrebno dobiti PTE na osnovu page directory-a i vi
 Također je korisna za kreiranje page tabela, kao i provjeravanja da li neki page table ili PTE postoji.
 
 
+### `page_alloc`
+
+#### Šta
+Funkcija uzima okvir sa liste slobodnih okvira i vraća ga caller-u.
+Efektivno radi pop front nad listom slobodnih okvira (`page_free_list`).
+Također popunjava okvir nulama, ukoliko caller to zahtijeva.
+
+#### Kako
+**Napomena** \
+Pod slobodan okvir mislim `struct PageInfo*`.
+Dakle pointer (virtuelna adresa) na element iz `pages` koji opisuje slobodan okvir.
+
+Ukoliko postoji slobodan okvir (lista nije prazna) funkcija ga vrati calleru.
+Pri tome "odvezuje" taj slobodni okvir od liste slobodnih okvira postavljanjem njegovog `pp_link` na `NULL` 
+i pomijera glavu (head, pointer na prvi element, `page_free_list`) liste slobodnih okvira.
+Ukoliko je u funkciju proslijeđen `ALLOC_ZERO` flag, funkcija taj okvir popunjava nulama koristeći funkciju `memset` 
+(U ovom slučaju se radi o stvarnom okviru, dijelu fizičke memorije. 
+Jasno, nije moguće direktno manipulisati fizičkom memorijom, pa se popunjavanje nula vrši u virtuelnom adresnom prostoru, 
+ali budući da postoji mapiranje virtuelnog u fizički, rezultat je da se fizički okvir popuni nulama).
+
+#### Zašto
+Funkcija se koristi kada je iz bilo kojeg razloga potrebno još memorije, bilo kernelu ili nekom drugom procesu.
+Efektivno mijenja ulogu funkcije `boot_alloc`.
+
+
 ---
 #### TEMPLATE
 ```
