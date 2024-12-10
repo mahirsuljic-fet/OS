@@ -26,29 +26,6 @@
 ## `pmap.c`
 
 
-### `boot_alloc`
-
-#### Šta
-Funkcija alocira memoriju potrebnu sistemu kada se tek pokrene (odma nakon boot-anja).
-Ne bi se trebala koristiti nakon što se inicijalizira i počne koristiti page allocator.
-
-#### Kako
-Pointer `nextfree` pokazuje na sljedeći bajt slobodne memorije.
-
-Memorija se alocira `n` bajti memorije tako što:
-- stara vrijednost `nextfree` (dakle prvi slobodni bajt memorije prije trenutne alokacije) "zapamti"
-- `nextfree` se "pomjeri" za onoliko koliko memorije želimo alocirati (`n`) \
-  (ali obavezno `nextfree` mora biti poravnat na veličinu stranice (`PGSIZE` što je 4096B))
-- vrati se stara vrijednost `nextfree`
-
-Funkcija vraća pointer, dakle neku adresu.
-Nakon te adrese znamo sigurno da narednih `n` bajti (onoliko koliko smo tražili) niko drugi ne koristi.
-U ovo možemo biti sigurno zato jer **trenutno** ništa drugo ne može alocirati memoriju, niti dealocirati.
-
-#### Zašto
-Koristi se za alokaciju page directory-a kernela (`kern_pgdir`) i za alokaciju ostatka fizičke memorije (inicijalizacija page alokatora, `pages`).
-
-
 ### `mem_init`
 
 #### Šta
@@ -100,6 +77,32 @@ Budući da govori koliko ima ukupno memorije, na osnovu toga je moguće osigurat
 Poziva se unutar funkcije `mem_init` u fajlu `pmap.c`.
 
 
+### `boot_alloc`
+
+#### Šta
+Funkcija alocira memoriju potrebnu sistemu kada se tek pokrene (odma nakon boot-anja).
+Ne bi se trebala koristiti nakon što se inicijalizira i počne koristiti page allocator.
+
+#### Kako
+Pointer `nextfree` pokazuje na sljedeći bajt slobodne memorije.
+
+Memorija se alocira `n` bajti memorije tako što:
+- stara vrijednost `nextfree` (dakle prvi slobodni bajt memorije prije trenutne alokacije) "zapamti"
+- `nextfree` se "pomjeri" za onoliko koliko memorije želimo alocirati (`n`) \
+  (ali obavezno `nextfree` mora biti poravnat na veličinu stranice (`PGSIZE` što je 4096B))
+- vrati se stara vrijednost `nextfree`
+
+Funkcija vraća pointer, dakle neku adresu.
+Nakon te adrese znamo sigurno da narednih `n` bajti (onoliko koliko smo tražili) niko drugi ne koristi.
+U ovo možemo biti sigurno zato jer **trenutno** ništa drugo ne može alocirati memoriju, niti dealocirati.
+
+#### Zašto
+Koristi se za alokaciju page directory-a kernela (`kern_pgdir`) i za alokaciju ostatka fizičke memorije (inicijalizacija page alokatora, `pages`).
+
+
+---
+#### TEMPLATE
+```
 ### ``
 
 #### Šta
@@ -107,3 +110,5 @@ Poziva se unutar funkcije `mem_init` u fajlu `pmap.c`.
 #### Kako
 
 #### Zašto
+
+```
