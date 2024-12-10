@@ -100,6 +100,45 @@ U ovo možemo biti sigurno zato jer **trenutno** ništa drugo ne može alocirati
 Koristi se za alokaciju page directory-a kernela (`kern_pgdir`) i za alokaciju ostatka fizičke memorije (inicijalizacija page alokatora, `pages`).
 
 
+### `page_init`
+
+#### Šta
+Funkcija označava sve okvire koji se mogu proizvoljno koristiti kao slobodne.
+Inicijalizira `pages` i listu slobodnih stranica (`page_free_list`).
+Efektivno radi push front na `page_free_list` pri čemu popunjaje `pages` sa adekvatnim metapodacima.
+
+#### Kako
+**Napomena**\
+Svaki element iz niza `pages` je tipa `struct PageInfo` i opisuje neki okvir. \
+`pages[0]` opisuje nulti okvir, `pages[1]` opisuje prvi okvir, itd. \
+`pages` je virtuelna adresa, ali opisuje okvir, koji je dio fizičke memorije.
+Na osnovu `pages` znamo sve o okvirima, ako nas zanima peti okvir, `pages[5]` nam govori da li je on slobodan i koliko ima referenci na njega.
+Tako da, kada kažem okvir, zapravo mislim na element iz niza `pages`, tipa `struct PageInfo`, koji opisuje okvir. \
+Slobodan okvir ima `pp_ref` postavljen na `0`, a `pp_link` na sljedeći slobodan okvir. \
+Zauzeti okvir okvir ima `pp_ref` različit od `0`, a `pp_link` postavljen na `NULL`.
+
+Prvo se označava prvi okvir da nije slobodan, zbog IDT i ostalih struktura koje je BIOS tu postavio.
+Ovo sprječava procese da mijenjaju pomenute strukture, jer se taj okvir nikada neće alocirati.
+
+Dalje, označavaju se svi okviri iz base memorije (osim prvog) kao slobodni.
+
+Od kraja base memorije do adrese 1MB se nalazi tzv. IO hole (Input/Output rupa).
+To je dio fizičkog adresnog prostora koji nije mapiran u RAM (memoriju), nego u VGA, druge uređaje i BIOS.
+Te stranice ne želimo da se ikada alociraju, pa ih označimo kao zauzete.
+
+Dio fizičkog adresnog prostora u kojem se nalazi kernel, `kern_pgdir` i `pages` također ne želimo da se koriste, pa ćemo ih označiti kao zauzete.
+
+Na kraju, sve okvire od kraja `pages` pa do kraja fizičke memorije 
+(ne adresnog prostora, nego onoliko koliko memorije ima, kako nam je rekla funkcija `i386_detect_memory`) označimo kao slobodne.
+
+#### Zašto
+Ovim se označava koje okvire smijemo koristiti proizvoljno (npr. alociramo nekom procesu i znamo da smije raditi šta hoće tu, neće ništa pokvariti).
+Ovim se također sprječava da dva procesa slučajno koriste isti okvir 
+(ne bi bilo baš dobro da napišemo u svom programu `int a = 5;`, zatim isprintamo i vidimo da je neko promijenio tu vrijednost na 3453453).
+Praktično, način na koji ćemo dodjeljivati memoriju je da uzmemo slobodan okvir iz `page_free_list` i dadnemo onome ko je tražio.
+Funkcija se poziva iz `mem_init`.
+
+
 ---
 #### TEMPLATE
 ```
