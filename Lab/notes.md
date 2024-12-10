@@ -33,6 +33,10 @@ Funkcija inicijalizira memoriju.
 Alocira fizičku memoriju (`boot_alloc`), napravi page alokator (`pages`), napravi page directory za kernel (`kern_pgdir`) i postavi odgovarajuća mapiranja.
 
 #### Kako
+**Napomena** \
+U trenutku poziva ove funkcije kernel i dalje koristi `entry_pgdir` za straničenje 
+(dva mapiranja: `[0, 4MB)` virt. -> `[0, 4MB)` fiz. i `[KERNBASE, KERNBASE + 4MB)` virt. -> `[0, 4MB)` fiz.).
+
 Detektuje koliko računar ima memorije pozivom funkcije `i386_detect_memory`.
 
 Kreira inicijalni page directory koji će koristiti kernel.
@@ -48,6 +52,18 @@ Taj niz će se zvati `pages` i cijeli niz se popunjava nulama.
 Popunjavanjem nulama se osigurava da svaki okvir nema referenci (`pp_ref` je 0) i da nema poveznicu (pointer) na neki drugi okvir (`pp_link` je NULL, odnosno 0).
 
 Inicijaliziraju se metapodaci o okvirima (niz `pages`) pozivom funkcije `page_init`.
+
+Popunjava se page directory `kern_pgdir`, postavljaju se tri mapitanja, i to:
+- cijeli niz `pages` iz fizičkog adresnog prostora (dakle, od fizičke adrese gdje se nalazi `pages`) u virtuelni adresni prostor krenuvši od virtuelne adrese `UPAGES`
+- `KSTKSIZE` bajti iz fizičkog adresnog prostora počevši od fizičke adrese gdje se nalazi `bootstack` u virtuelni adresni prostor ispod `KSTACKTOP`
+- fizički adresni prostor od fizičke adrese `0x00000000` u virtuelni adresni prostor od `KERNBASE` do kraja virtuelnog adresnog prostora (`0xffffffff`) \
+  (dakle, [`KERNBASE`, `0xffffffff`]).
+
+Zatim se novi page directory (`kern_pgdir`) počinje koristiti.
+To se radi učitavanjem fizičke adrese na kojoj se nalazi `kern_pgdir` u registar `%cr3` pomoću funkcije `lcr3`.
+
+Na kraju se dodatno konfiguriše registar `%cr0`.
+Osigura se da su flagovi `PE`, `PG`, `AM`, `WP`, `NE` i `MP` uključeni, a flagovi `TS` i `EM` iskjučeni.
 
 #### Zašto
 Koristi se pri pokretanju sistema, odnosno njegovoj inicijalizaciji.
@@ -137,6 +153,72 @@ Ovim se također sprječava da dva procesa slučajno koriste isti okvir
 (ne bi bilo baš dobro da napišemo u svom programu `int a = 5;`, zatim isprintamo i vidimo da je neko promijenio tu vrijednost na 3453453).
 Praktično, način na koji ćemo dodjeljivati memoriju je da uzmemo slobodan okvir iz `page_free_list` i dadnemo onome ko je tražio.
 Funkcija se poziva iz `mem_init`.
+
+
+### `boot_map_region`
+
+#### Šta
+Funkcija uzima page directory (`pgdir`), virtuelnu adresu (`va`), količinu memorije (`size`), fizičku adresu (`pa`) i flagove (`perm`); 
+mapira svaku stranicu iz `[va, size)` u `[pa, size)` sa postavljenim `P` i `perm` flagovima.
+Kreira PTE za svaki pomenutu stranicu i po potrebi i page table (pomoću funkcije `pgdir_walk`) koristeći proslijeđeni page directory (`pgdir`).
+
+#### Kako
+Većinu posla odrađuje funkcija `pgdir_walk`.
+
+Za svaku stranicu iz pomenutog opsega se poziva funkcija `pgdir_walk` koja vraća PTE u kojeg se zapisuje fizička adresa okvira u koji se mapira i željeni flagovi.
+
+#### Zašto
+Koristi se u funkciji `map_init` za lagano kreiranje mapiranja.
+
+
+### `pgdir_walk`
+
+#### Šta
+Funkcija uzima page directory (`pgdir`) i virtuelnu adresu (`va`),
+pronalazi PDE, page table i PTE koji opisuju mapiranje virtuelne adrese `va`, i vrati pointer na taj PTE.
+Po potrebi (i želji) funkcija također kreira page table u kojem će se nalaziti traženi PTE.
+
+#### Kako
+**Napomena** \
+Bitno je da se koriste pointeri na PDE i PTE, a ne same vrijednosti.
+Ukoliko bi se koristila vrijednost, to je samo kopija tog PDE ili PTE.
+Korištenjem pointera se stvarno pokazuje na taj PDE ili PTE.
+Kada kažem PDE ili PTE zapravo mislim na pointer na njega.
+
+Prvo je potrebno indeksirati page directory da se dobije PDE.
+Page directory se indeksira pomoću najjačih 10 bita virtuelne adrese (`va`) čiji se PTE traži.
+Tih 10 bita se može "izvaditi" pomoću makroa `PDX` (definisan u `mmu.h`).
+
+Dalje postoje dva slučaja:
+- page table postoji
+- page table ne postoji
+
+Da li page table postoji se ispituje provjeravanjem `P` bita od dobijenog PDE.
+
+Ako page table postoji, za sada, nije potrebno ništa dodatno raditi.
+
+Ako page table ne postoji, i ako ne želimo kreirati novi, vraćamo `NULL` pointer čime kažemo da PTE nije pronađen.
+
+Ako page table ne postoji i želimo kreirati novi, tada je potrebno to i uraditi.
+Potreban je okvir u koji će se smjestiti novi page table.
+Novi okvir će se zatražiti od page alokatora pozivom funkcije `page_alloc`.
+Također želimo da taj okvir bude ispunjen nulama, pa se u `page_alloc` proslijedi `ALLOC_ZERO` kao argument.
+Page table se ispunjaje nulama iz istog razloga kao i page directory, želimo da svi `P` biti svih PTE budu 0.
+Bitno je označiti da se dobijeni okvir koristi inkrementovanjem njegovor `pp_ref`.
+Zadnja stvar koju je potrebno uraditi pri kreiranju novog page table je izmijeniti PDE koji je asociran sa njim.
+U taj PDE se stavljaju fizička adresa od novog page table-a i aktiviraju se `P`, `U` i `W` flagovi.
+`P` flag se uvijek mora aktivirati, `U` i `W` flagovi se aktiviraju kako bi se provjeravanje permisija delegiralo PTE-ovima.
+
+U ovom trenutku imamo page table (ili smo imali, ili smo kreirali, ili smo vratili `NULL`, pa nismo ni došli do ove tačke).
+
+Indeksiranjem page table-a se dobija PTE koji vraćamo iz funkcije (osnosno vraćamo njegovu adresu).
+PTE se indeksira pomoću drugih 10 najjačih bita virtuelne adrese (`va`).
+Za dobijanje tih 10 bita postoji makro `PTX`.
+
+#### Zašto
+Ova funkcija je veoma korisna i ima više namjena.
+Koristi se bilo kada kada je potrebno dobiti PTE na osnovu page directory-a i virtuelne adrese.
+Također je korisna za kreiranje page tabela, kao i provjeravanja da li neki page table ili PTE postoji.
 
 
 ---
