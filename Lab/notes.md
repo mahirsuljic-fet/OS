@@ -45,7 +45,9 @@ Cijeli kernel page directory ispuni nulama.
 Ovo se se radi da bi se `P` bit svakog PDE postavio na 0, čime se efektivno kaže da je ovaj page directory prazan.
 
 Dodaje jedan PDE, i to za sam `kern_pgdir`.
-Jedna stranica od adrese `UVPT` se mapira u okvir `kern_pgdir` sa user (`U` bit) permisijama.
+Ovo je zanimljiva linija koda, piše da ne moramo trenutno shvtatai čemu tačno služi, ali evo šta radi.
+Ako se pristupa stranici koja se nalazi na `UVPT` koristi `kern_pgdir` kao page table.
+Dakle, za taj dio virtuelnog adresnog prostora `kern_pgdir` se koristi kao page directory i kao page table.
 
 Alocira se dovoljno mjesta za sve metapodatke o svim okvirima (niz od `npages` puta veličina od `struct PageInfo`).
 Taj niz će se zvati `pages` i cijeli niz se popunjava nulama.
