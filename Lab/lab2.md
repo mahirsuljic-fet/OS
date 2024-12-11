@@ -377,7 +377,7 @@ Konačan kod:
 static void
 boot_map_region(pde_t* pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-  for (size_t i = 0; i < size / PGSIZE; ++i)
+  for (size_t i = 0; i <= size / PGSIZE; ++i)
   {
     // get relevant pte and create page table if it doesn't exist
     pte_t* pte = pgdir_walk(pgdir, (void*)va, 1);
@@ -762,6 +762,16 @@ Kasnije će se mapiranje virtuelne memorije od `0x0` do `4MB` na isti dio fizič
 pa će se kernelu moći pristupiti samo iznad `KERNBASE`, i to iz svakog virtuelnog adresnog prostora.
 
 
+## Challenge 1
+Aktivirana je podrška za stranice od 4MB.
+
+Implementirana je funkcija `boot_map_region_large`.
+Ova funkcija radi na isti način kao i `boot_map_region` ali implementira straničenje u jednom nivou koristeći stranice od 4MB.
+Poziva se u funkciji `mem_init` na isti način kao i `boot_map_region` u **exercise 5** za dio memorije iznad `KERNBASE`.
+
+Modifikovana je funkcija `check_va2pa` jer kao što je inicijalno implementirana nije adekvatna za provjeru mapiranja koje koristi stranice od 4MB.
+
+
 ## Challenge 2
 Implementirane su sljedeće komande:
 - `printpgdir` \
@@ -853,8 +863,9 @@ ali za ove potrebe smatram da je ovo sasvim uredu.
 
 Implementacija:
 ``` c
-void print_mapping_info(const char* title, uintptr_t base, size_t size_b)
+void print_mapping_info(const char* title, uintptr_t va, size_t size_b)
 {
+  uintptr_t base = ROUNDDOWN(va, PTSIZE);
   size_t size_p = ROUNDUP(size_b, PGSIZE) / PGSIZE;
   size_t size_e = ROUNDUP(size_p, NPTENTRIES) / NPTENTRIES;
   cprintf("+-----------------------------+\n");
