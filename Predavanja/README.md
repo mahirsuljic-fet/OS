@@ -7,5 +7,6 @@
 ### [Predavanje 7 - Linker skripte i page allocator](./p7.md)
 ### [Predavanje 8 - Nova konfiguracija straničenja, kontrola modova i uvod o prekidima](./p8.md)
 ### [Predavanje 9 - Prekidi, virtualizacija procesora i stanja procesa](./p9.md)
+### [Predavanje 10 - Prekidi, IDT, vektori prekida, gates, traps i tretiranje prekida](./p10.md)
 
 ### [Cheatsheet](./cheatsheet.md)
