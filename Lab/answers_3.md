@@ -897,7 +897,7 @@ Polje `istrap` (drugi argument) makroa `SETGATE` određuje da li će pri tretira
 Generalno želimo mogućnost prekidanja procesora pri tretiranju sistemskog poziva pa će to polje biti postavljeno na `1`.
 
 Dalje, u funkciju `trap_dispatch` u fajlu [`trap.c`](../kern/trap.c), potrebno je dodati dispatch za sistemske pozive.
-Korisnički program smiješta broj sistemskog poziva registar `%eax`, a argumente u registre `%eax`, `%edx`, `%ecx`, `%ebx`, `%edi` i `%esi`.
+Korisnički program smiješta broj sistemskog poziva registar `%eax`, a argumente u registre `%edx`, `%ecx`, `%ebx`, `%edi` i `%esi`.
 Budući da se stanje procesora u trenutku prekida nalazi u trap frame-u, iz njega se mogu pročitati potrebne vrijednosti.
 Broj sistemskog poziva i njegovi argumenti se prosljeđuju funkciji `syscall`.
 Povratna vrijednost sistemskog poziva, kao i svih funkcija, se treba nalaziti u registru `%eax`,
