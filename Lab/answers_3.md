@@ -346,9 +346,9 @@ void sys_cputs(const char* s, size_t len)
 
 Unutar programa *hello* se poziva funkcija `sys_cputs` koja koristi sistemski poziv da nešto isprinta.
 Budući da trenutno ne postoji nikakav oblik tretiranja prekida, sistemski poziv se neće moći adekvatno tretirati.
-Zbog toga, očekuje se da se kao rezultat sistemskog poziva baci iznimka.
-Budući da tu iznimku iz istih razloga niko ne tretira, desit će se još jedna iznimka.
-To je već treći prekid koji se ne tretira.
+Zbog toga, očekuje se da se pri pokušaju tretiranja sistemskog poziva baci iznimka.
+Budući da tu iznimku iz istih razloga niko ne tretira, desit će se još jedna iznimka koja se naziva double fault.
+Budući da ni tu iznimku niko ne tretira, desit će se još jedna iznimka, treća po redu, pa se naziva triple fault.
 Ukoliko se dese tri netretirana prekida (triple fault) sistem će se restartovati.
 Dakle, nakon instrukcije `int $0x30` očekuje se restartovanje računara (QEMU-a).
 
@@ -459,7 +459,7 @@ TRAPHANDLER_NOEC(th_mchk,    T_MCHK)
 TRAPHANDLER_NOEC(th_simderr, T_SIMDERR)
 ```
 Prvi argument makroa `TRAPHANDLER` i `TRAPHANDLER_NOEC` je pointer na funkciju koja će se koristiti za tretiranje tog prekida.
-Drugi argument obih makroa je redni broj (vektor) prekida.
+Drugi argument ovih makroa je redni broj (vektor) prekida.
 Ove kontante su definisane u [`trap.h`](../inc/trap.h).
 Razlika između ovih makroa je u tome što se `TRAPHANDLER` koristi za prekide za koje procesor na stack pusha error code,
 a `TRAPHANDLER_NOEC` se koristi za prekide koji nemaju error code i umjesto toga se na stack pusha `0`, 
@@ -503,10 +503,10 @@ i predstavlja niz od 256 gate deskriptora (`struct Gatedesc`).
 U ovom slučaju `gate` je element iz niza `idt`, koji se indeksira pomoću vektora `T_*` definisanih u [`trap.h`](../inc/trap.h).
 
 Drugi argument govori da li je taj gate trap gate (`1`) ili interrupt gate (`0`).
-Trap gate resetuje `IF` (Interrupt Flag) u flags registru (`eflags`) 
+Interrupt gate resetuje `IF` (Interrupt Flag) u flags registru (`eflags`) 
 i time onemogućava tretiranje novog prekida dok se neki već tretira,
-dok interrupt gate ne mijenja `IF`.
-Želimo da u ovom slučaju JOS bude preemptivan, pa će se kao argument koristiti vrijednost `0`.
+dok trap gate ne mijenja `IF`.
+Pri tretiranju iznimki ne želimo dopustiti da se tretira novi prekid, pa će se kao argument koristiti vrijednost `0`.
 
 Treći argument je code segment selektor.
 Budući da se iznimke tretiraju u kernel modu, koristit će se selektor za kernel code segment.
@@ -887,12 +887,14 @@ void trap_init(void)
                             ...
   }
                             ...
-  SETGATE(idt[T_SYSCALL], 0, GD_KT, _trap_handlers[T_RES], 3);
+  SETGATE(idt[T_SYSCALL], 1, GD_KT, _trap_handlers[T_RES], 3);
                             ...
 }
 ```
 Kao DPL se koristi `3` jer želimo omogućiti korisničkim programima da prave sistemske pozive, to i jest poenta.
 Kao pointer na syscall trap handler se koristi `_trap_handlers[T_RES]` iz prethodno pojašnjenih razloga.
+Polje `istrap` (drugi argument) makroa `SETGATE` određuje da li će pri tretiranju datog prekida procesor "prihvatati" druge prekide ili ne.
+Generalno želimo mogućnost prekidanja procesora pri tretiranju sistemskog poziva pa će to polje biti postavljeno na `1`.
 
 Dalje, u funkciju `trap_dispatch` u fajlu [`trap.c`](../kern/trap.c), potrebno je dodati dispatch za sistemske pozive.
 Korisnički program smiješta broj sistemskog poziva registar `%eax`, a argumente u registre `%eax`, `%edx`, `%ecx`, `%ebx`, `%edi` i `%esi`.
@@ -952,6 +954,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 
 
 ## Challenge 3
+
+Ispod se nalaze resursi/izvori koji su korišteni pri rješavanju ovog challenge-a.
 
 ### Sources
 - #### `sysenter` i `sysexit`
