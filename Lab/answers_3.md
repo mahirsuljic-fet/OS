@@ -894,7 +894,7 @@ void trap_init(void)
 Kao DPL se koristi `3` jer želimo omogućiti korisničkim programima da prave sistemske pozive, to i jest poenta.
 Kao pointer na syscall trap handler se koristi `_trap_handlers[T_RES]` iz prethodno pojašnjenih razloga.
 Polje `istrap` (drugi argument) makroa `SETGATE` određuje da li će pri tretiranju datog prekida procesor "prihvatati" druge prekide ili ne.
-Generalno želimo mogućnost prekidanja procesora pri tretiranju sistemskog poziva pa će to polje biti postavljeno na `1`.
+Za razliku od XV6, JOS nije preemptivan čak ni pri tretiranju sistemskih poziva, pa je `istrap` polje postavljeno na `0`.
 
 Dalje, u funkciju `trap_dispatch` u fajlu [`trap.c`](../kern/trap.c), potrebno je dodati dispatch za sistemske pozive.
 Korisnički program smiješta broj sistemskog poziva registar `%eax`, a argumente u registre `%edx`, `%ecx`, `%ebx`, `%edi` i `%esi`.
@@ -986,7 +986,7 @@ Dakle, potrebno je na neki način indeksirati `envs` i adresu tog elementa zapis
 U fajlu [`env.h`](../inc/env.h) se nalazi makro `ENVX` koji služi za indeksiranje niza `envs`.
 Kao argument za taj makro se prosljeđuje ID okruženja (`envid`).
 ID okruženja se može dobiti pomoću sistemskog poziva `sys_getenvid`.
-Kombinujući sve navedeno, u funkciji `libmain`, u fajlu `../lib/libmain.c`, 
+Kombinujući sve navedeno, u funkciji `libmain`, u fajlu [`libmain.c`](../lib/libmain.c), 
 se postavlja vrijednost `thisenv` za svako novo okruženje:
 ``` c
 void libmain(int argc, char** argv)
@@ -1146,4 +1146,3 @@ Destroyed the only environment - nothing more to do!
                        ...
 ```
 što je upravo ono što i treba da se desi.
-
