@@ -472,6 +472,11 @@ Dok se to izvršava, jezgro 2 pusha ostatak trap frame-a na stack, poziva funkci
 Trap frame-ovi na stacku su ispreplitani i jezgra neće moći pravilno nastaviti izvršavanje okruženja, niti će moći pravilno servisirati prekid.
 
 
+## Challenge 1
+
+Implementiran fine-grained locking.
+
+
 # Round-Robin Scheduling
 
 ## Exercise 6
@@ -624,7 +629,7 @@ i učitati ga u procesor čime se to okruženje nastavlja izvršavati tačno od 
 
 # System Calls for Environment Creation
 
-# Exercise 7
+## Exercise 7
 Implementacije sistemskih poziva se nalaze u [`syscall.c`](../kern/syscall.c).
 
 ### `sys_exofork`
@@ -798,3 +803,585 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 }
 ```
 
+
+
+<div align='center'><h1 align='center'>Part B: Copy-on-Write Fork</h1></div>
+
+# User-level page fault handling
+
+# Setting the Page Fault Handler
+
+## Exercise 8
+Implementiran je novi sistemski poziv `sys_env_set_pgfault_upcall` u fajlu [`syscall.c`](../kern/syscall.c) 
+kojim korisničko okruženje dadne kernelu funkciju koja će se koristiti pri tretiranju user level page fault-a.
+Pointer na tu funkciju se zapisuje u polju `env_pgfault_upcall` datog okruženja.
+Prije nego što se postavi pomenuto polje u `Env` strukturi za dato okruženje,
+potrebno je ispitati validnost datog `envid` i da li okruženje uopće ima odgovarajuće permisije.
+``` c
+static int
+sys_env_set_pgfault_upcall(envid_t envid, void* func)
+{
+  struct Env* e;
+
+  // check if enviroment id is valid and permissions
+  if (envid2env(envid, &e, 1))
+    return -E_BAD_ENV;
+
+  // set page fault upcall for given enviroment
+  e->env_pgfault_upcall = func;
+
+  return 0;
+}
+```
+
+Na kraju dodan je dispatch za novo-implementirani sistemski poziv u funkciji `syscall` u fajlu [`syscall.c`](../kern/syscall.c) .
+``` c
+int32_t
+syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+{
+  switch (syscallno)
+  {
+                ...
+  case SYS_env_set_pgfault_upcall:
+    return sys_env_set_pgfault_upcall(a1, (void*)a2);
+                ...
+  }
+}
+```
+
+
+# Invoking the User Page Fault Handler
+
+## Exercise 9
+Potrabno je implementirati dio funkcije `page_fault_handler` za slučaj kada se page fault tretira u user modu.
+Ako je trenutno okruženje postavilo upcall funkciju za page fault (`env_pgfault_upcall`),
+to znači da će se page fault tretirati u user modu pomoću funkcije na koji pokazuje `env_pgfault_upcall`.
+U tom slučaju potrebno je provjeriti gdje se page fault desio, provjeriti permisije, 
+napraviti user trap frame i ponovo pokrenuti oruženje tako da tretira svoj page fault.
+
+Slijedi implementacija pomenutom dijela funkcije `page_fault_handler` iz fajl [`trap.c`](../kern/trap.c):
+``` c
+void page_fault_handler(struct Trapframe* tf)
+{
+  uint32_t fault_va;
+  fault_va = rcr2();
+                            ...
+  if (curenv->env_pgfault_upcall)
+  {
+    struct UTrapframe* utf; // user trap frame
+
+    // check where the page fault happened
+    if (tf->tf_esp < UXSTACKTOP && tf->tf_esp >= UXSTACKTOP - PGSIZE)
+    {
+      // page fault happened on the user exception stack
+      *((uint32_t*)(tf->tf_esp - 4)) = 0;                                     // push empty word
+      utf = (struct UTrapframe*)(tf->tf_esp - 4 - sizeof(struct UTrapframe)); // push user trap frame below last esp and empty word
+    }
+    else
+      utf = (struct UTrapframe*)(UXSTACKTOP - sizeof(struct UTrapframe)); // push user trap frame at top of user exception stack
+
+    // check memory permissions
+    user_mem_assert(curenv, utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
+
+    // set up user trap frame
+    utf->utf_fault_va = fault_va;
+    utf->utf_err = tf->tf_err;
+    utf->utf_regs = tf->tf_regs;
+    utf->utf_eip = tf->tf_eip;
+    utf->utf_eflags = tf->tf_eflags;
+    utf->utf_esp = tf->tf_esp;
+
+    // set up esp and eip for user enviroment when it starts running again
+    // so it can handle the page fault
+    tf->tf_esp = (uintptr_t)utf;
+    tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+
+    // run user enviroment from it's page fault upcall function
+    env_run(curenv);
+  }
+                            ...
+}
+```
+
+Varijabla `utf` je pointer na user trap frame.
+User trap frame je struktura (`struct UTrapframe`) koja sadrži stanje procesora 
+u trenutku kada se desio page fault u user modu.
+Nju koristi page fault handler (`env_pgfault_upcall`) pri tretiranju page faulta.
+
+User trap frame treba da se napravi na različitim mjestima u različitim slučajevima, i to
+za slučaj da se page fault desio dok je okruženje koristilo:
+- user stack, tada se user trap frame pravi na vrhu user exception stack-a.
+- user *exception* stack, tada se user trap frame pravi na dnu korištenog user exception stacka (gdje pokazuje user stack pointer), 
+  pri čemu je potrebno ostaviti jedan "prazan" word iznad user trap frame-a (vrijednost `0` od 4B)
+
+Ako je stack pointer od odruženja (`tf_esp`) bio u opsegu `[UXSTACKTOP - PGSIZE, UXSTACKTOP)` 
+to znači da se page fault desio dok je okruženje koristilo user exception stack.
+
+Potrebno je također provjeriti da li okruženje ima permisije da pristupa user trap frame-u koji će kernel napraviti,
+što se može uraditi pomoći funkcije `user_mem_assert` koja je implementirana u fajlu [`pmap.c`](../kern/pmap.c) u prethodnom lab-u.
+
+Dalje, user trap frame se popunjava vrijednostima iz trap frame-a (`tf`), 
+pri čemu se vrijednost za `utf_fault_va` čita iz registra `%cr2` 
+u kojem je zapisana adresa koja je prouzrokovala page fault.
+
+Na kraju se stack pointer okruženja (`tf_esp`) postavlja na početak user trap frame-a (user exception stack),
+instruction pointer okruženja (`tf_eip`) se postavlja na adresu funkcije koja će tretirati page fault u user modu (`env_pgfault_upcall`) i 
+okruženje se ponovo pokreće, čime ono počinje tretirati page fault.
+
+#### What happens if the user environment runs out of space on the exception stack?
+U slučaju da okruženje ispuni cijeli user exception stack i pokuša pushati nešto izvan page-a alociranog za exception stack 
+desit će se page fault. Tada se cijeli prethnodno objašnjen proces ponavlja pri čemu se pravi novi user trap frame.
+Taj user trap frame će počinjati na adresi koja je izvan user exception stacka (`utf` će biti ispod `UXSTACKTOP - PGSIZE`).
+U tom slučaju će pasti `user_mem_assert`. Zašto i šta se desi tada? Pogledajmo implementaciju funkcije `user_mem_assert` iz fajla [`pmap.c`](../kern/pmap.c):
+``` c
+void user_mem_assert(struct Env* env, const void* va, size_t len, int perm)
+{
+  if (user_mem_check(env, va, len, perm | PTE_U) < 0)
+  {
+    cprintf("[%08x] user_mem_check assertion failure for "
+            "va %08x\n",
+      env->env_id, user_mem_check_addr);
+    env_destroy(env); // may not return
+  }
+}
+```
+
+Ako funkcija `user_mem_check` **ne** vrati `NULL`, tada se okruženje uništava.
+Pogledajmo kada će `user_mem_check` vratiti `NULL`, odnosno kada neće, u fajlu [`pmap.c`](../kern/pmap.c):
+``` c
+int user_mem_check(struct Env* env, const void* va, size_t len, int perm)
+{
+  uintptr_t _va = (uintptr_t)va; // just changed type to avoid casts for readability
+  uintptr_t end_va = _va + len;
+
+  // check if user is trying to access out of user virtual memory
+  if (end_va >= ULIM)
+  {
+    user_mem_check_addr = _va;
+    return -E_FAULT; // <<<<<<<<<<
+  }
+
+  for (uintptr_t addr = ROUNDDOWN(_va, PGSIZE); addr < end_va; addr += PGSIZE)
+  {
+    pte_t* pte = pgdir_walk(env->env_pgdir, (void*)addr, 0);
+
+    if (!pte || (*pte & perm) != perm || !(*pte & PTE_P))
+    {
+      user_mem_check_addr = addr > _va ? addr : _va; // set to larger
+      return -E_FAULT; // <<<<<<<<<<<<<<<<<<<<
+    }
+  }
+
+  return 0;
+}
+```
+Dakle, `user_mem_check` **ne** vraća `NULL` u slučajevima:
+- najviša adresa dijela memorije koji se provjerava prelazi `ULIM` (ne bi se trebalo desiti pri korištenju user exception stacka)
+- neka adresa iz dijela memorije koji se provjerava nema dovoljne permisije
+- neka adresa iz dijela memorije koji se provjerava nije mapirana (`pte` je `NULL` ili `PTE_P` u `pte` nije setovan)
+
+Zadnji slučaj je najvjerovatniji da se desi, i upravo ovo je razlog uništavanja okruženja za slučaj da se cijeli user exception stack popuni.
+
+**TL;DR: okruženje se uništava.**
+
+
+
+# User-mode Page Fault Entrypoint
+
+
+## Exercise 10
+Za implementaciju `_pgfault_upcall` korisno je posmatrati user trap frame:
+```
+                    <-- UXSTACKTOP
+trap-time esp       (2)
+trap-time eflags    (5)
+trap-time eip       (3)
+trap-time eax       start of struct PushRegs
+trap-time ecx
+trap-time edx
+trap-time ebx
+trap-time oesp
+trap-time ebp
+trap-time esi
+trap-time edi       (4) end of struct PushRegs
+tf_err (error code)
+fault_va            (1) <-- %esp when handler is run
+```
+
+Oznake `(1), (2), (3), (4), (5)` će biti referencirane kasnije (u objašnjenju implementacije).
+
+Na osnovu user trap frame-a implementirana ja asembler funkcija `_pgfault_upcall` u fajlu [`pfentry.S`](../lib/pfentry.S).
+Dio ove funkcije je već implementirao MIT. Prethodno implementirani dio i novo-implementirani dio su razdvojeni.
+
+``` asm
+.text
+.globl _pgfault_upcall
+_pgfault_upcall:
+    // Call the C page fault handler.
+    pushl %esp           // function argument: pointer to UTF
+    movl _pgfault_handler, %eax
+    call *%eax
+    addl $4, %esp        // pop function argument
+
+    // ^^^^^^^^^^^^^^^^^^^^^^^^ prethodno implementirano ^^^^^^^^^^^^^^^^^^^^^^^^ //
+    ////////////////////////////////////////////////////////////////////////////////
+    // vvvvvvvvvvvvvvvvvvvvvvvvvvv novo-implementirano vvvvvvvvvvvvvvvvvvvvvvvvvv //
+
+    subl $4, 48(%esp)    // increment trap-time esp by 4
+    movl 48(%esp), %eax  // move incremented trap-time esp into %eax
+    movl 40(%esp), %ecx  // move value of trap-time eip into %ecx
+    movl %ecx, (%eax)    // move value of trap time eip to bottom of trap-time stack
+
+    // Restore the trap-time registers.
+    addl $8, %esp   // skip fault_va and error code
+    popal           // load general-purpose registers from stack into cpu
+
+    // Restore eflags from the stack.
+    addl $4, %esp   // skip %eip
+    popfl           // load eflags from stack into cpu
+
+    // Switch back to the adjusted trap-time stack.
+    popl %esp       // load trap-time %esp from stack into cpu
+
+    // Return to re-execute the instruction that faulted.
+    ret             // continue execution from trap-time %eip
+```
+
+U prethodno implementiranom dijelu se pripremi arguument i poziva page fault handler (`_pgfault_handler`)
+koji tretira page fault, nakon čega se argument pop-a sa stacka. Nakon ovoga stack ostaje u istom stanju kao i prethodno, 
+tj. iznad `%esp` se nalazi user trap frame koji je kernel pripremio u funkciji `page_fault_handler`.
+
+U novo-implementiranom dijelu, page fault je već tretiran i cilj je prebaciti procesor sa user exception stacka na user stack 
+i nastaviti izvršavati kod sa mjesta gdje se desio page fault kao da se ništa nije desilo. 
+Da bi se stvorila ta iluzija potrebno je vratiti stanja svih registara na vrijednosti kakve su bile prije page faulta.
+
+Problemi su sljedeći:
+- ako se promijeni stack ne mogu se koristiti vrijednosti pohranjene na "prošlom" stacku
+- ako se vrati stanje registara opšte namjene njihove vrijednosti se više ne smiju mijenjati
+- ako se vrati stanje flags registra (`%eflags`) ne smiju se izvršavati instrukcije koje bi promijenile neki flag u njemu
+- cijelo stanje procesora se mora vratiti prije promjene instruction pointer-a (`%eip`), 
+  jer se time nastavlja izvršavati user mode funkcija koja ne zna ništa o page fault-u
+
+Uzimajući sve ovo u obzir može se zaključiti par stvari:
+- stanje registra `%eip` se mora vratiti zadnje
+- stanje registra `%esp` se mora vratiti tik prije stanja `%eip`
+- stanje registra `%eflags` se mora vratiti što kasnije moguće
+- stanje registra `%esp` se mora vratiti na način da se ne promijeni `%eflags`
+- nakon što se vrate stanja registara opšte namjene mora se isključivo koristiti stack za pohranu podataka
+
+U jednom potezu se može vratiti vrijednost `%eip` pomoću instrukcije `ret`, što znači da će instrukcija `ret` biti zadnja instrukcija u ovoj funkciji.
+Instrukcija `ret` pop-a vrijednost sa stack-a u `%eip`.
+Međutim, ta instrukcija se mora izvršiti na user stacku, jer je prije promjene `%eip` potrebno promijeniti stack sa user exception stacka na user stack.
+Dakle, vrijednost za `%eip` se mora pohraniti na user stacku nakon čega će se izvršiti instrukcija `ret` i nastavit se izvršenje okruženja tamo gdje je stalo.
+Da bi se pohranila vrijednost na user stacku potreban user pointer na user stack.
+Također je potrebno napraviti prostora na user stacku inkrementiranjem njegovog `%esp`.
+Vrijednost za `%eip` je velika 4B, pa je potrebno napraviti toliko prostora.
+
+Konačno dolazimo do implementacije.
+
+Na početku se `%esp` nalazi na `(1)`.
+`%esp` user stacka se nalazi na `(2)`.
+Razlika između ovih vrijednosti je `12 * 4B`, odnosno `48B`.
+
+Pomoću sljedećih instrukcija se pomijera user stack pointer i njegova nova vrijednost sprema u `%eax`:
+```asm
+    subl $4, 48(%esp)    // increment trap-time esp by 4
+    movl 48(%esp), %eax  // move incremented trap-time esp into %eax
+```
+
+Vrijednost koju treba imati `%eip` kada se nastavi izvršavanje okruženja na mjestu gdje je stalo je na `(3)`.
+Razlika između `%esp` (`(1)`) i `(3)` je `10 * 4B`, odnosno `40B`.
+
+Pomoću sljedećih instrukcija se vrijednost za user `%eip` smiješta na prethodno napravljen prostor (`4B`) na dnu user stacka (prethodno pohranjeno u `%eax`):
+``` asm
+    movl 40(%esp), %ecx  // move value of trap-time eip into %ecx
+    movl %ecx, (%eax)    // move value of trap time eip to bottom of trap-time stack
+```
+
+Dalje, potrebno je vratiti vrijednosti registara opšte namjene.
+Oni se nalaze na stacku počevši od `(4)`.
+Korisnički program ne zanima adresa na kojoj se desio page fault niti error code, pa se mogu ignorisati i "preskočiti".
+Razlika između `(4)` i `(1)` (trenutna vrijednost `%esp`) je `2 * 4B`, odnosno `8B`, pa je za toliko potrebno povećati `%esp`.
+Nakon `addl` instrukcije `%esp` se nalazi na `(4)`, nakon čega se pomoću instrukcije `popal` 
+vraćaju vrijednosti registara opšte namjene u procesor i `%esp` dolazi na `(3)`.
+Od tog trenutka se ne smiju više koristiti registri opšte namjene jer bi im se promijenile vrijednosti.
+
+``` asm
+    addl $8, %esp   // skip fault_va and error code
+    popal           // load general-purpose registers from stack into cpu
+```
+
+Vrijednost za `%eip`, koja se nalazi na `(3)` je već pohranjena na user stacku, pa se može ignorisati i "preskočiti", čime `%esp` dolazi na `(5)`.
+
+``` asm
+    addl $4, %esp   // skip %eip
+```
+
+Preostalo je još vratiti vrijednosti za `%eflags`, `%esp` i `%eip`.
+Vrijednost za `%eflags` se nalazi na `(5)`, gdje i pokazuje `%esp`, 
+pa se direktno vraća sa stacka pomoću instrukcije `popfl`, čime `%esp` dolazi na `(2)`.
+
+``` asm
+    popfl           // load eflags from stack into cpu
+```
+
+Na isti način se vrši promjena stacka, odnosno vraća se vrijednost za `%esp`.
+`%esp` je na `(2)`, pa se nakon `popl %esp` ta vrijednost učitaje u `%esp`, čime se prelazi na user stack.
+
+``` asm
+    popl %esp       // load trap-time %esp from stack into cpu
+```
+
+Sada se nalazimo na user stacku, na mjestu gdje je prethodno pohranjena vrijednost za `%eip`.
+Instrukcijom `ret` se na učitava u procesor, čime se nastavlja izvršavanje okruženja na mjestu gdje se desio page fault.
+
+
+## Exercise 11
+Funkcija `set_pgfault_handler` je implementirana u fajlu [`pgfault.c`](../lib/pgfault.c):
+``` c
+void set_pgfault_handler(void (*handler)(struct UTrapframe* utf))
+{
+  if (_pgfault_handler == 0)
+  {
+    int err;
+
+    // allocate new page using syscall
+    err = sys_page_alloc(thisenv->env_id, (void*)UXSTACKTOP - PGSIZE, PTE_W); // PTE_P set by page_insert; PTW_U set by sys_page_alloc
+
+    // panic and print error if there is one
+    if (err)
+      panic("sys_pgfault_handler - sys_page_alloc: %e", err);
+
+    // set page upcall function using syscall
+    err = sys_env_set_pgfault_upcall(thisenv->env_id, _pgfault_upcall);
+
+    // panic and print error if there is one
+    if (err)
+      panic("sys_pgfault_handler - sys_env_set_pgfault_upcall: %e", err);
+  }
+
+  // Save handler pointer for assembly to call.
+  _pgfault_handler = handler;
+}
+```
+
+Ova funkcija je poprilično jednostavna.
+Ukoliko page fault handler (`_pgfault_handler`) nije inicijaliziran (ima vrijednost `0`, odnosno `NULL`), tada radi sljedeće.
+
+Ukratko, koristi sistemski poziv `sys_page_alloc` da alocira jednu stranicu za user exception stack i 
+mapira je na adresu `UXSTACKTOP - PGSIZE` (dno user exception stacka) sa permisijama za pisanje.
+Dalje, pomoću sistemskog poziva `sys_env_set_pgfault_upcall` postavlja page fault upcall funkciju na `_pgfault_upcall`, 
+koja je prethodno implementirana u ***exercise 10***, u fajlu [`pfentry.S`](../lib/pfentry.S).
+Pri povratku iz sistemskih poziva također provjerava da li se desila neka greška, i ako jest paničari.
+
+Na kraju postavlja globalnu varijablu `_pgfault_handler` na proslijeđeni `handler`.
+Varijabla `_pgfault_handler` je tipa pointer na funkciju koja prima jedan argument tipa `struct UTrapframe*`.
+
+
+# Implementing Copy-on-Write Fork
+
+
+## Exercise 12
+Copy-on-write fork je implementacija forka u kojoj i parent i child 
+okruženje koristi iste stranice sve dok jedno od njih ne pokuša pisati u neku stranicu.
+Child okruženje samo ima mapiranje stranica od parent okruženja.
+Kada parent ili child okruženje pokuša pisati u neku stranicu,
+tada i parent i child dobijaju svoju kopiju te stranice.
+
+Kopiranje stranica nije performatno, pa se na ovaj način izbjegaje
+kopiranje stranica sve dok to nije apsolutno potrebno.
+Sve dok oba okruženja samo čitaju podatke, podaci ostaju isti pa nema potrebe kopirati ih.
+
+
+### `fork`
+
+Funkcija `fork` u fajlu [`fork.c`](../lib/fork.c) implementira ovu metodu forkanja:
+``` c
+envid_t
+fork(void)
+{
+  envid_t envid;
+
+  // set up page fault handler
+  set_pgfault_handler(pgfault);
+
+  // create child; returns 0 to child, id of child enviroment to parent
+  envid = sys_exofork();
+
+  // if sys_exofork failed return the same error to fork caller
+  if (envid < 0)
+    return envid;
+
+  // check if we're executing from child
+  if (!envid)
+  {
+    // executing from child; fix thisenv
+    thisenv = &envs[ENVX(sys_getenvid())];
+    return envid; // returns 0; end of function for child
+  }
+
+  // executing from parent, envid is child's id
+
+  // copy parent address space into child address space
+  for (uintptr_t va = 0x0; va < USTACKTOP; va += PGSIZE)
+  {
+    pde_t pde = uvpd[PDX(va)];
+
+    // check if pde is present
+    if (!(pde & PTE_P))
+      continue;
+
+    pte_t pte = uvpt[PGNUM(va)];
+
+    // if PDE and PTE are present duplicate the page
+    if (pte & PTE_P)
+      duppage(envid, PGNUM(va));
+  }
+
+  // set up child exception stack
+  int err;
+
+  // allocate new page for child exception stack
+  err = sys_page_alloc(envid, (void*)(UXSTACKTOP - PGSIZE), PTE_W); // PTE_U and PTE_P set by sys_page_alloc
+
+  // return error if there is one
+  if (err)
+    return err;
+
+  // set up child page fault upcall
+  void _pgfault_upcall(); // implemented in /lib/pfentry.S
+  err = sys_env_set_pgfault_upcall(envid, _pgfault_upcall);
+
+  // return error if there is one
+  if (err)
+    return err;
+
+  // set child status to RUNNABLE
+  err = sys_env_set_status(envid, ENV_RUNNABLE);
+
+  // return error if there is one
+  if (err)
+    return err;
+
+  return envid;
+}
+```
+
+Pomoću sistemskog poziva `sys_exofork` se kreira child okruženja
+koje ima iste registre kao i parent okruženje.
+Od povratka iz ovog sistemskog poziva kod dalje izvršavaju i parent i child okruženje.
+Razlika između njih je što u child okruženju vrijednost varijable `envid` (povratna vrijednost sistemskog poziva)
+je `0`, a u parent okruženju je id child okruženja.
+
+U child okruženju se mijenja njegova glovalna varijabla `thisenv` tako da stvarno pokazuje na child okruženje. 
+Ovdje se završava izvršenje funkcije `fork` u child okruženju.
+
+Parent okruženje kopira mapiranja svog virtuelnog adresnog prostora u child okruženje.
+Ovo se vrši pomoću `for` petlje u kojoj se svaka stranica koja je mapirana u parent okruženju
+mapira u child okruženju pomoću funkcije `duppage` koja je implementirana kasnije u ovom exercise-u.
+Varijabla `uvpd` predstavlja page directory trenutnog (u ovom slučaju parent) okruženja, a `uvpt` predstavlja page table.
+Indeksiranjem `uvpd` pomoću `PDX(va)` se dobija PDE od trenutnog okruženja koje se koristi za mapiranje stranice u kojoj je adresa `va`.
+Indeksiranjem `uvpt` pomoću `PGNUM(va)` se dobija PTE od trenutnog okruženja koje se koristi za mapiranje stranice u kojoj je adresa `va`.
+Ovo je "trik" sa mapiranjem koji JOS koristi.
+
+Dalje se alocita (i mapira) stranica za child exception stack pomoću sistemskog poziva `sys_page_alloc`, 
+postavlja page fault upcall funkcija pomoću sistemskog poziva `sys_env_set_pgfault_upcall` 
+i postavlja status child okruženja u `ENV_RUNNABLE`.
+
+
+### `duppage`
+
+Funkcija `duppage` se koristi za dupliciranje stranice iz jednog okruženja u drugo i implementirana je u fajlu [`fork.c`](../lib/fork.c):
+``` c
+static int
+duppage(envid_t child_envid, unsigned pn)
+{
+  int err;
+  pte_t pte = uvpt[pn];
+  uintptr_t va = pn * PGSIZE;
+  envid_t parent_envid = sys_getenvid();
+  uint32_t perm = PTE_U; // PTE_P is automatically set by sys_page_map
+
+  // check if page is writable or copy-on-write
+  if (pte & PTE_W || pte & PTE_COW)
+  {
+    // mark page as copy-on-write
+    perm |= PTE_COW;
+
+    // map page in child enviroment
+    err = sys_page_map(parent_envid, (void*)va, child_envid, (void*)va, perm);
+
+    // return error if there is one
+    if (err)
+      return err;
+
+    // remap page in parent enviroment, now copy-on-write
+    err = sys_page_map(parent_envid, (void*)va, parent_envid, (void*)va, perm);
+  }
+  else
+    // map page in child enviroment
+    err = sys_page_map(parent_envid, (void*)va, child_envid, (void*)va, perm);
+
+  // return error if there is one
+  if (err)
+    return err;
+
+  return 0;
+}
+```
+
+U slučaju da je stranica koja se mapira writable ili označena kao copy-on-write,
+u tom slučaju se ta stranica mapira i u child okruženju kao copy-on-write
+pomoću sistemskog poziva `sys_page_map`.
+Ista stranica se također remapira i u parent okruženju.
+U suprotnom se samo mapira u child okruženju.
+
+
+### `pgfault`
+
+Funkcija `pgfault` se koristi za tretiranje page faulta i implementirana je u fajlu [`fork.c`](../lib/fork.c):
+``` c
+static void
+pgfault(struct UTrapframe* utf)
+{
+  void* addr = (void*)utf->utf_fault_va;
+  uint32_t err = utf->utf_err;
+  int r;
+
+  pte_t pte = uvpt[PGNUM(addr)];
+
+  if (!(pte & PTE_COW && err & FEC_WR))
+    panic("pgfault: not a write to a copy-on-write page");
+
+  envid_t envid = sys_getenvid();
+
+  // allocate new page and map it to PFTEMP
+  r = sys_page_alloc(envid, PFTEMP, PTE_W); // PTE_U and PTE_P set by sys_page_alloc
+
+  // return error if there is one
+  if (r) panic("pgfault: from sys_page_alloc -> %e", r);
+
+  // copy data from old page to new page
+  memcpy(PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
+
+  // map the new page at the old page address
+  r = sys_page_map(envid, PFTEMP, envid, ROUNDDOWN(addr, PGSIZE), PTE_U | PTE_W);
+
+  // return error if there is one
+  if (r) panic("pgfault: from sys_page_map -> %e", r);
+
+  // unmap temp page
+  r = sys_page_unmap(envid, PFTEMP);
+
+  // return error if there is one
+  if (r) panic("pgfault: from sys_page_unmap -> %e", r);
+}
+```
+
+U slučaju da se adresa koja je izazvala page fault ne nalazi u stranici 
+koja je označena kao copy-on-write ili ako page fault nije izazvan pokušajem pisanja,
+u tom slučaju okruženje paničari.
+
+Dalje, alocira se nova stranica koja se privremeno mapira na `PFTEMP`.
+Stranica u kojoj je adresa koja je izazvala page fault se kopira u novo-alociranu stranicu pomoću funkcije `memcpy`.
+Dalje, ta novo-alocirana stranica se mapira na adresu stranice koja je izazvala page fault, a stranica mapirana na `PFTEMP` se demapira.
