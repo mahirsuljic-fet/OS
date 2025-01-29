@@ -337,9 +337,6 @@ Ovim možemo zaključiti da se kernel stackovi nalaze u `.bss` sekciji kernela. 
 Budući da je `stacktop` vrh stacka, kao argument za virtuelnu adresu u funkciju `boot_map_region` 
 se prosljeđuje `stacktop - KSTKSIZE` čime se dobija adresa dna `i`-tog kernel stacka.
 
----
-### [COMIC BREAK](https://www.xkcd.com/138/)
----
 
 ## Exercise 4
 Globalna varijabla `ts` više nije dovoljna.
@@ -568,9 +565,6 @@ void i386_init(void)
 }
 ```
 
----
-### [COMIC BREAK](https://www.xkcd.com/272/)
----
 
 ## Question 3
 #### In your implementation of `env_run()` you should have called `lcr3()`. Before and after the call to `lcr3()`, your code makes references (at least it should) to the variable `e`, the argument to `env_run`. Upon loading the `%cr3` register, the addressing context used by the MMU is instantly changed. But a virtual address (namely `e`) has meaning relative to a given address context--the address context specifies the physical address to which the virtual address maps. Why can the pointer `e` be dereferenced both before and after the addressing switch? 
@@ -994,10 +988,6 @@ Zadnji slučaj je najvjerovatniji da se desi, i upravo ovo je razlog uništavanj
 **TL;DR: okruženje se uništava.**
 
 
----
-### [COMIC BREAK](https://www.xkcd.com/835/)
----
-
 
 # User-mode Page Fault Entrypoint
 
@@ -1147,11 +1137,6 @@ Na isti način se vrši promjena stacka, odnosno vraća se vrijednost za `%esp`.
 
 Sada se nalazimo na user stacku, na mjestu gdje je prethodno pohranjena vrijednost za `%eip`.
 Instrukcijom `ret` se na učitava u procesor, čime se nastavlja izvršavanje okruženja na mjestu gdje se desio page fault.
-
-
----
-### [COMIC BREAK](https://www.xkcd.com/327/)
----
 
 
 ## Exercise 11
