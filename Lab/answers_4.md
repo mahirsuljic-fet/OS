@@ -1755,6 +1755,3 @@ Pri zapisivanju vrijednosti u pointere `from_env_store` i `perm_store` bitno je 
 Uklonjena je petlja u funkciji `ipc_send`, reimplementiarn je dispatch za sistemski poziv `sys_ipc_try_send`
 i implementirana je funkcionalnost gdje okruženje koje želi poslati poruku ne koristi CPU sve dok okruženje kojem
 šalje poruku ne bude spremno da je primi.
-
-
-
