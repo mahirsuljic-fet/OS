@@ -337,6 +337,9 @@ Ovim možemo zaključiti da se kernel stackovi nalaze u `.bss` sekciji kernela. 
 Budući da je `stacktop` vrh stacka, kao argument za virtuelnu adresu u funkciju `boot_map_region` 
 se prosljeđuje `stacktop - KSTKSIZE` čime se dobija adresa dna `i`-tog kernel stacka.
 
+---
+### [COMIC BREAK](https://www.xkcd.com/138/)
+---
 
 ## Exercise 4
 Globalna varijabla `ts` više nije dovoljna.
@@ -425,7 +428,7 @@ void trap(struct Trapframe* tf)
             ...
     lock_kernel(); // <<<<<<<<<<
 
-    // Garbage collect if current enviroment is a zombie
+    // Garbage collect if current environment is a zombie
     if (curenv->env_status == ENV_DYING)
     {
       env_free(curenv);
@@ -473,8 +476,11 @@ Trap frame-ovi na stacku su ispreplitani i jezgra neće moći pravilno nastaviti
 
 
 ## Challenge 1
-
-Implementiran fine-grained locking.
+Implementirana su 4 nova lock-a:
+- `page_allocator_lock`
+- `console_driver_lock`
+- `scheduler_lock`
+- `ipc_lock`
 
 
 # Round-Robin Scheduling
@@ -562,6 +568,9 @@ void i386_init(void)
 }
 ```
 
+---
+### [COMIC BREAK](https://www.xkcd.com/272/)
+---
 
 ## Question 3
 #### In your implementation of `env_run()` you should have called `lcr3()`. Before and after the call to `lcr3()`, your code makes references (at least it should) to the variable `e`, the argument to `env_run`. Upon loading the `%cr3` register, the addressing context used by the MMU is instantly changed. But a virtual address (namely `e`) has meaning relative to a given address context--the address context specifies the physical address to which the virtual address maps. Why can the pointer `e` be dereferenced both before and after the addressing switch? 
@@ -638,9 +647,9 @@ static envid_t
 sys_exofork(void)
 {
   struct Env* newenv;
-  int alloc_ret = env_alloc(&newenv, curenv->env_id); // get new enviroment
+  int alloc_ret = env_alloc(&newenv, curenv->env_id); // get new environment
 
-  // check if enviroment allocation failed
+  // check if environment allocation failed
   if (alloc_ret)
     return alloc_ret;
 
@@ -659,7 +668,7 @@ sys_env_set_status(envid_t envid, int status)
 {
   struct Env* e;
 
-  // check if enviroment id is valid and permissions
+  // check if environment id is valid and permissions
   if (envid2env(envid, &e, 1))
     return -E_BAD_ENV;
 
@@ -681,7 +690,7 @@ sys_page_alloc(envid_t envid, void* va, int perm)
   struct Env* e;
   struct PageInfo* newpage;
 
-  // check if enviroment id is valid and permissions
+  // check if environment id is valid and permissions
   if (envid2env(envid, &e, 1))
     return -E_BAD_ENV;
 
@@ -697,7 +706,7 @@ sys_page_alloc(envid_t envid, void* va, int perm)
   if (!(newpage = page_alloc(ALLOC_ZERO)))
     return -E_NO_MEM;
 
-  // try to insert the new page in the given enviroment's address space
+  // try to insert the new page in the given environment's address space
   if (page_insert(e->env_pgdir, newpage, va, perm | PTE_U)) // PTE_P always set by page_insert
   {
     // if insertion fails free the page
@@ -720,11 +729,11 @@ sys_page_map(envid_t srcenvid, void* srcva,
   struct PageInfo* page;
   pte_t* pte;
 
-  // check if source enviroment id is valid and permissions
+  // check if source environment id is valid and permissions
   if (envid2env(srcenvid, &e_src, 1))
     return -E_BAD_ENV;
 
-  // check if destination enviroment id is valid and permissions
+  // check if destination environment id is valid and permissions
   if (envid2env(dstenvid, &e_dst, 1))
     return -E_BAD_ENV;
 
@@ -748,7 +757,7 @@ sys_page_map(envid_t srcenvid, void* srcva,
   if (perm & PTE_W && !(*pte & PTE_W))
     return -E_INVAL;
 
-  // insert the page in the destination enviroment address space
+  // insert the page in the destination environment address space
   if (page_insert(e_dst->env_pgdir, page, dstva, perm))
     return -E_NO_MEM;
 
@@ -763,7 +772,7 @@ sys_page_unmap(envid_t envid, void* va)
 {
   struct Env* e;
 
-  // check if enviroment id is valid and permissions
+  // check if environment id is valid and permissions
   if (envid2env(envid, &e, 1))
     return -E_BAD_ENV;
 
@@ -771,7 +780,7 @@ sys_page_unmap(envid_t envid, void* va)
   if ((uintptr_t)va >= UTOP || (uint32_t)va % PGSIZE)
     return -E_INVAL;
 
-  // remove the page mapped at va from the enviroment's address space
+  // remove the page mapped at va from the environment's address space
   page_remove(e->env_pgdir, va);
 
   return 0;
@@ -823,11 +832,11 @@ sys_env_set_pgfault_upcall(envid_t envid, void* func)
 {
   struct Env* e;
 
-  // check if enviroment id is valid and permissions
+  // check if environment id is valid and permissions
   if (envid2env(envid, &e, 1))
     return -E_BAD_ENV;
 
-  // set page fault upcall for given enviroment
+  // set page fault upcall for given environment
   e->env_pgfault_upcall = func;
 
   return 0;
@@ -891,12 +900,12 @@ void page_fault_handler(struct Trapframe* tf)
     utf->utf_eflags = tf->tf_eflags;
     utf->utf_esp = tf->tf_esp;
 
-    // set up esp and eip for user enviroment when it starts running again
+    // set up esp and eip for user environment when it starts running again
     // so it can handle the page fault
     tf->tf_esp = (uintptr_t)utf;
     tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
 
-    // run user enviroment from it's page fault upcall function
+    // run user environment from it's page fault upcall function
     env_run(curenv);
   }
                             ...
@@ -984,6 +993,10 @@ Zadnji slučaj je najvjerovatniji da se desi, i upravo ovo je razlog uništavanj
 
 **TL;DR: okruženje se uništava.**
 
+
+---
+### [COMIC BREAK](https://www.xkcd.com/835/)
+---
 
 
 # User-mode Page Fault Entrypoint
@@ -1136,6 +1149,11 @@ Sada se nalazimo na user stacku, na mjestu gdje je prethodno pohranjena vrijedno
 Instrukcijom `ret` se na učitava u procesor, čime se nastavlja izvršavanje okruženja na mjestu gdje se desio page fault.
 
 
+---
+### [COMIC BREAK](https://www.xkcd.com/327/)
+---
+
+
 ## Exercise 11
 Funkcija `set_pgfault_handler` je implementirana u fajlu [`pgfault.c`](../lib/pgfault.c):
 ``` c
@@ -1178,6 +1196,10 @@ Na kraju postavlja globalnu varijablu `_pgfault_handler` na proslijeđeni `handl
 Varijabla `_pgfault_handler` je tipa pointer na funkciju koja prima jedan argument tipa `struct UTrapframe*`.
 
 
+## Challenge 5
+U ovom challenge-u je implementirana mogućnost da se sve iznimke tretiraju u user modu.
+
+
 # Implementing Copy-on-Write Fork
 
 
@@ -1205,7 +1227,7 @@ fork(void)
   // set up page fault handler
   set_pgfault_handler(pgfault);
 
-  // create child; returns 0 to child, id of child enviroment to parent
+  // create child; returns 0 to child, id of child environment to parent
   envid = sys_exofork();
 
   // if sys_exofork failed return the same error to fork caller
@@ -1308,18 +1330,18 @@ duppage(envid_t child_envid, unsigned pn)
     // mark page as copy-on-write
     perm |= PTE_COW;
 
-    // map page in child enviroment
+    // map page in child environment
     err = sys_page_map(parent_envid, (void*)va, child_envid, (void*)va, perm);
 
     // return error if there is one
     if (err)
       return err;
 
-    // remap page in parent enviroment, now copy-on-write
+    // remap page in parent environment, now copy-on-write
     err = sys_page_map(parent_envid, (void*)va, parent_envid, (void*)va, perm);
   }
   else
-    // map page in child enviroment
+    // map page in child environment
     err = sys_page_map(parent_envid, (void*)va, child_envid, (void*)va, perm);
 
   // return error if there is one
@@ -1385,3 +1407,354 @@ u tom slučaju okruženje paničari.
 Dalje, alocira se nova stranica koja se privremeno mapira na `PFTEMP`.
 Stranica u kojoj je adresa koja je izazvala page fault se kopira u novo-alociranu stranicu pomoću funkcije `memcpy`.
 Dalje, ta novo-alocirana stranica se mapira na adresu stranice koja je izazvala page fault, a stranica mapirana na `PFTEMP` se demapira.
+
+
+## Challenge 6
+`sfork` je implementiran u fajlu [`fork.c`](../lib/fork.c).
+Promijenjena je funkcionalnost `thisenv` tako da u svakom okruženju pokazuje na to okruženje.
+Pored ovoga, također je napisan program [`sforktest`](../user/sforktest.c) koji provjerava funkcionalnost `sfork`-a.
+
+
+
+<div align='center'><h1 align='center'>Part C: Preemptive Multitasking and Inter-Process communication (IPC)</h1></div>
+
+# Clock Interrupts and Preemption
+
+## Exercise 13
+Handleri za IRQ se definišu u [`trapentry.S`](../kern/trapentry.S) na isti način kao i handleri za iznimke, pomoću makroa `TRAPHANDLER` i `TRAPHANDLER_NOEC`.
+Budući da ni jedan IRQ handler ne pusha error code na stack, za keiranje IRQ handlera koristi se isključivo `TRAPHANDLER_NOEC`.
+Handleri za IRQ su definisani nakon handlera za iznimke, nakon labela `_trap_handlers`, kako bi se pomoću istog moglo im pristupati.
+
+U [`trapentry.S`](../kern/trapentry.S) je definisano prvih 16 IRQ handlera, kako je navedeno u exercise-u:
+``` asm
+.data
+.global _trap_handlers
+_trap_handlers:
+.text
+TRAPHANDLER_NOEC(th_divide,  T_DIVIDE)
+                  ...
+TRAPHANDLER_NOEC(th_simderr, T_SIMDERR)
+// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ //
+//                  OLD                  //
+///////////////////////////////////////////
+//                  NEW                  //
+// vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv //
+TRAPHANDLER_NOEC(th_irq_0, IRQ_OFFSET + 0)
+TRAPHANDLER_NOEC(th_irq_1, IRQ_OFFSET + 1)
+TRAPHANDLER_NOEC(th_irq_2, IRQ_OFFSET + 2)
+TRAPHANDLER_NOEC(th_irq_3, IRQ_OFFSET + 3)
+TRAPHANDLER_NOEC(th_irq_4, IRQ_OFFSET + 4)
+TRAPHANDLER_NOEC(th_irq_5, IRQ_OFFSET + 5)
+TRAPHANDLER_NOEC(th_irq_6, IRQ_OFFSET + 6)
+TRAPHANDLER_NOEC(th_irq_7, IRQ_OFFSET + 7)
+TRAPHANDLER_NOEC(th_irq_8, IRQ_OFFSET + 8)
+TRAPHANDLER_NOEC(th_irq_9, IRQ_OFFSET + 9)
+TRAPHANDLER_NOEC(th_irq_10, IRQ_OFFSET + 10)
+TRAPHANDLER_NOEC(th_irq_11, IRQ_OFFSET + 11)
+TRAPHANDLER_NOEC(th_irq_12, IRQ_OFFSET + 12)
+TRAPHANDLER_NOEC(th_irq_13, IRQ_OFFSET + 13)
+TRAPHANDLER_NOEC(th_irq_14, IRQ_OFFSET + 14)
+TRAPHANDLER_NOEC(th_irq_15, IRQ_OFFSET + 15)
+```
+
+IDT entries za IRQ počinju od indeksa `IRQ_OFFSET`.
+To znači da se za IRQ 0 koristi IDT entry na indeksu `IRQ_OFFSET`.
+Generalnije, IDT entry za IRQ `n` se nalazi na indeksu `IRQ_OFFSET + n`.
+
+Budući da su IRQ handler idefinisani nakon `T_SIMDERR` handlera,
+to znači da se prvom IRQ handleru (`th_irq_0`) može pristupati sa 
+`_trap_handlers[T_SIMDERR + 1]`, drugom sa `_trap_handlers[T_SIMDERR + 2]`, itd.
+Prateći ovu logiku, može se definisani `IRQ_TH_OFFSET` kao `T_SIMDERR + 1`,
+pa će handler za `n`-ti IRQ biti na indeksu `IRQ_TH_OFFSET + n` niza `_trap_handlers`.
+
+Također je tip u deklaraciji `_trap_handlers` promijenjen na niz pointera na funkcije koje 
+ne uzimaju ništa i ne vraćaju ništa kako bi bolje opisao trap handlere.
+
+Ispod je inicijalizacija IDT entry-a za prvih 16 IRQ u funkciji `trap_init`, u fajlu [`trap.c`](../kern/trap.c):
+``` c
+void trap_init(void)
+{
+                ...
+  extern void (*_trap_handlers[])(void);
+                ...
+  int IRQ_TH_OFFSET = T_SIMDERR + 1;
+  for (int t = 0; t <= 15; ++t)
+    SETGATE(idt[IRQ_OFFSET + t], 0, GD_KT, _trap_handlers[IRQ_TH_OFFSET + t], 0);
+                ...
+}
+```
+
+Dalje, omogućeni su prekidi za svako novo okruženje koje se alocira tako što se interrupt flag setuje (postavi na 1).
+
+Interrupt flag je bit 9 (počevši od 0; `0x0200`) u registru `eflags`.
+Ovaj bit je definisan u [`mmu.h`](../inc/mmu.h) kao `FL_IF`.
+Registar `eflags` novo-alociranog okruženja `e` se nalazi u njegovom trap frame-u, i to u polju `tf_eflags`.
+
+Koristeći bitwise or operator (`|`) može se setovati interrupt flag u novo-alociranom okruženju
+u funkciji `env_alloc`, u fajlu [`env.c`](../kern/env.c), na sljedeći način:
+``` c
+int env_alloc(struct Env** newenv_store, envid_t parent_id)
+{
+              ...
+  e->env_tf.tf_eflags |= FL_IF;
+              ...
+}
+```
+
+Također je odkomentarisana instrukcija `sti` u inline assembleru u funkciji `sched_halt` u fajlu [`sched.c`](../kern/sched.c):
+``` c
+void sched_halt(void)
+{
+            ...
+  asm volatile(
+    "movl $0, %%ebp\n"
+    "movl %0, %%esp\n"
+    "pushl $0\n"
+    "pushl $0\n"
+    "sti\n" // <<<<<<<<<<<<<<<<<<<<
+    "1:\n"
+    "hlt\n"
+    "jmp 1b\n"
+    : : "a"(thiscpu->cpu_ts.ts_esp0));
+}
+```
+
+
+## Exercise 14
+U određenim intervalima LAPIC dobija prekide od timer-a.
+Vektor prekida za timer je `IRQ_TIMER`, konstanta definisana u [`trap.h`](../inc/trap.h).
+Svaki IRQ vektor prekida je offsetan za `IRQ_OFFSET`.
+Dakle, ako je u trap frame-u prekinutog okruženja u polju `tf_trapno` vrijednost `IRQ_OFFSET + IRQ_TIMER`,
+to znači da se desio prekid od timera i potrebno je otići u scheduler.
+
+Ispod je implementacija dispatch-a za timer interrupt u fajlu [`trap.c`](../kern/trap.c):
+``` c
+static void
+trap_dispatch(struct Trapframe* tf)
+{
+                    ...
+  if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER)
+  {
+    lapic_eoi();
+    sched_yield();
+    panic("trap_dispatch: sched_yield returned");
+  }
+                    ...
+}
+```
+
+Prije ulazka u scheduler bitno je signalizirati LAPIC-u da je prekid tretiran i da je procesor spreman da tretira novi prekid.
+Ovo je bitno uraditi prije poziva `sched_yield` jer se neće desiti povratak iz iste.
+Ako se desi povratak iz `sched_yield`, nešto nije uredu pa u tom slučaju će kernel da paničari.
+
+
+# Inter-Process communication (IPC)
+
+## Exercise 15
+Okruženja koriste IPC putem sistemskih poziva `sys_ipc_recv` (za primanje) i `sys_ipc_try_send` (za slanje),
+koji su implementirani u [`syscall.c`](../kern/syscall.c).
+Ove sistemske pozive indirektno pozivaju kroz funkcije `ipc_recv` (za primanje) i `ipc_send` (za slanje),
+koje su implementirane u [`ipc.c`](../lib/ipc.c).
+
+### `sys_ipc_recv`
+Pozivom ovo sistemskog poziva okruženje govori da je spremno primiti poruku od nekog drugog okruženja i ide u stanje čekanja (`ENV_NOT_RUNNABLE`).
+Okruženje se "probudi" (pređe u stanje `ENV_RUNNABLE`) kada konačno dobije poruku.
+Okruženje koje šalje poruku također može mapirati stranicu iz svog adresnog prostora na adresu `dstva` okruženja koje prima poruku.
+Na ovaj način od tog trenutka ta dva okruženja dijele tu stranicu.
+
+Implementacija ovog sistemskog poziva:
+``` c
+static int
+sys_ipc_recv(void* dstva)
+{
+  if ((uintptr_t)dstva < UTOP && (uintptr_t)dstva % PGSIZE)
+    return -E_INVAL;
+
+  curenv->env_ipc_recving = true;
+  curenv->env_ipc_dstva = dstva; // validity is checked by sender
+  curenv->env_status = ENV_NOT_RUNNABLE;
+
+  return 0;
+}
+```
+
+Ukoliko `dstva` nije u user dijelu memorije (ispod `UTOP`) i okruženje koje šalje poruku 
+pokuša mapirati tu stranicu u svoj adresni prosro desit će se page fault zbog nedovoljnih privilegija.
+Kako se to ne bi desilo, vrijednost `dstva` će se provjeravati u drugim funkcijama koje su implementirane u ovom exercise-u.
+
+
+### `sys_ipc_try_send`
+Pozivom ovog sistemskog poziva okruženje šalje poruku nekom drugom okruženju i eventualno mapira stranicu 
+iz svog adresnog prostora sa adrese `srcva` u adresni prostor okruženja koje prima stranicu, 
+na adresu zapisanu u polje `env_ipc_dstva` istog.
+
+Nakon izvršenja ovog sistemskog poziva okruženje koje prima poruku će:
+- biti označeno da ne želi primati poruke
+- poruku dobiti u polje `env_ipc_value` svojeg `struct Env` iz niza `envs`
+- biti "probuđeno", odnosno prebačeno u `ENV_RUNNABLE` stanje
+
+Ako se izvrši mapiranje stranice, okruženje koje prima poruku će dodatno:
+- imati mapiranu stranicu iz okruženja koje je poslalo poruku na adresi `dstva`
+- imati id okruženja koje je poslalo poruku zapisan u `env_ipc_from` u svom `struct Env` iz niza `envs`
+- imati permisije koje ima za pristup mapiranoj stranici zapisane u `env_ipc_perm` u svom `struct Env` iz niza `envs`
+
+Slijedi implementacija ovog sistemskog poziva:
+``` c
+static int
+sys_ipc_try_send(envid_t envid, uint32_t value, void* srcva, unsigned perm)
+{
+  struct Env* env_recv; // receiving environment
+
+  if (envid2env(envid, &env_recv, 0))
+    return -E_BAD_ENV;
+
+  if (!env_recv->env_ipc_recving)
+    return -E_IPC_NOT_RECV;
+
+  env_recv->env_ipc_perm = 0; // updates again if a page is sent
+
+  // if addresses are in user part of memory try to send a page
+  if ((uintptr_t)srcva < UTOP && (uintptr_t)env_recv->env_ipc_dstva < UTOP)
+  {
+    if ((uintptr_t)srcva % PGSIZE)
+      return -E_INVAL;
+
+    if (perm & ~PTE_SYSCALL)
+      return -E_INVAL;
+
+    pte_t* pte;
+    struct PageInfo* page;
+
+    pte = NULL; // initialize because page_lookup does not update it if page is not found
+    page = page_lookup(curenv->env_pgdir, srcva, &pte);
+
+    if (!pte)
+      return -E_INVAL;
+
+    if (perm & PTE_W && !(*pte & PTE_W))
+      return -E_INVAL;
+
+    if (page_insert(env_recv->env_pgdir, page, env_recv->env_ipc_dstva, perm))
+      return -E_NO_MEM;
+
+    env_recv->env_ipc_perm = perm;
+  }
+
+  // set target (receiving) environment's ipc fields
+  env_recv->env_ipc_recving = false;
+  env_recv->env_ipc_from = curenv->env_id;
+  env_recv->env_ipc_value = value;
+  env_recv->env_status = ENV_RUNNABLE;
+
+  return 0;
+}
+```
+
+Ukoliko `srcva` ili `dstva` nisu u user dijelu adresnog prostora (ispod `UTOP`),
+to se interpretira kao znak da nije potrebno izvršiti nikakvo mapiranje.
+U suprotnom, pomoću funkcije `page_lookup` se nalazi stranica koja je mapirana na adresu `srcva`
+i ista se mapira u adresni prostor okruženja koje prima poruku pomoću funkcije `page_insert`
+sa permisijama `perm` koje su date kao argument sistemskog poziva.
+
+
+### `syscall` dispatch
+Kako bi se mogli koristiti novo-implementirani sistemski pozivi potrebno je 
+dodati dispatch za njih u funkciji `syscall` u fajlu [`syscall.c`](../kern/syscall.c):
+``` c
+int32_t
+syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+{
+  switch (syscallno)
+  {
+                        ...
+  case SYS_ipc_try_send:
+    return sys_ipc_try_send(a1, a2, (void*)a3, a4);
+  case SYS_ipc_recv:
+    return sys_ipc_recv((void*)a1);
+  }
+}
+```
+
+
+### `ipc_send`
+Ova funkcija služi kao wrapper za sistemski poziv `sys_ipc_try_send`.
+Sve što radi je jednostavno pokušava poslati poruku nekom drugom okruženju
+sve dok slanje ne uspije ili dok se ne desi neki error.
+``` c
+void
+ipc_send(envid_t to_env, uint32_t val, void* pg, int perm)
+{
+  int err;
+
+  if (pg == NULL)
+    pg = (void*)UTOP;
+
+  while ((err = sys_ipc_try_send(to_env, val, pg, perm)))
+    if (err != -E_IPC_NOT_RECV) // gets to here only of there's an error
+      panic("ipc_send: %e", err);
+}
+```
+
+U implementaciji `sys_ipc_try_send` spomenuto je da ukoliko adresa za `srcva`
+nije iz user dijela adresnog prostora, to se interpretira kao znak da nije potrebno mapirati stranicu.
+U ovoj funkciji, ako je `pg` `NULL` pointer, to ima isto značenje,
+pa se u tom slučaju `pg` postavi na `UTOP` (može i bilo koja adresa iznad `UTOP`) kao znak
+sistemskom pozivu da ne vrši mapiranje.
+
+
+### `ipc_recv`
+Ova funkcija služi kao wrapper za sistemski poziv `sys_ipc_recv`.
+Također kroz pointere `from_env_store` i `perm_store` pohranjuje informacije od kojeg okruženja
+je dato okruženje primilo poruku i koje permisije ima za pristup mapiranoj stranici, respektivno.
+``` c
+int32_t
+ipc_recv(envid_t* from_env_store, void* pg, int* perm_store)
+{
+  int err;
+
+  if (pg == NULL)
+    pg = (void*)UTOP;
+
+  if ((err = sys_ipc_recv(pg)))
+  {
+    // ipc_recv syscall failed
+
+    if (from_env_store)
+      *from_env_store = 0;
+
+    if (perm_store)
+      *perm_store = 0;
+
+    return err;
+  }
+  else
+  {
+    // ipc_recv syscall succeeded
+
+    if (from_env_store)
+      *from_env_store = thisenv->env_ipc_from;
+
+    if (perm_store)
+      *perm_store = thisenv->env_ipc_perm;
+
+    return thisenv->env_ipc_value;
+  }
+}
+```
+
+U slučaju da primanje poruke ne uspije, funkcija vraća error koji dobije od sistemskog poziva,
+a za podatke o tome ko je poslat poruku i koje permisije ima zapisuje vrijednost `0`.
+U suprotnom, ako primanje poruke uspije, na adrese na koje pokazuju pointeri `from_env_store` i `perm_store` 
+zapisuje vrijednosti iz svog `struct Env` iz niza `envs` (osnosno `thisenv`), 
+koje je tamo spremilo okruženje koje je slalo poruku u sistemskom pozivu `sys_ipc_try_send`,
+a funkcija vraća vrijednost koju je okruženje primilo.
+Pri zapisivanju vrijednosti u pointere `from_env_store` i `perm_store` bitno je provjeriti da li su oni `NULL` pointeri.
+
+
+## Challenge 8
+Uklonjena je petlja u funkciji `ipc_send`, reimplementiarn je dispatch za sistemski poziv `sys_ipc_try_send`
+i implementirana je funkcionalnost gdje okruženje koje želi poslati poruku ne koristi CPU sve dok okruženje kojem
+šalje poruku ne bude spremno da je primi.
+
+
+
