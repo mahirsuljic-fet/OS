@@ -377,7 +377,7 @@ Konačan kod:
 static void
 boot_map_region(pde_t* pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-  for (size_t i = 0; i <= size / PGSIZE; ++i)
+  for (size_t i = 0; i < size / PGSIZE; ++i)
   {
     // get relevant pte and create page table if it doesn't exist
     pte_t* pte = pgdir_walk(pgdir, (void*)va, 1);
@@ -763,13 +763,111 @@ pa će se kernelu moći pristupiti samo iznad `KERNBASE`, i to iz svakog virtuel
 
 
 ## Challenge 1
-Aktivirana je podrška za stranice od 4MB.
+Aktivirana je podrška za stranice od 4MB setovanjem `PSE` bita registra `%cr4` u [`entry.S`](../kern/entry.S).
+
+``` asm
+    # Enable superpages
+    movl    %cr4, %eax
+    orl     $(CR4_PSE), %eax
+    movl    %eax, %cr4
+```
 
 Implementirana je funkcija `boot_map_region_large`.
 Ova funkcija radi na isti način kao i `boot_map_region` ali implementira straničenje u jednom nivou koristeći stranice od 4MB.
 Poziva se u funkciji `mem_init` na isti način kao i `boot_map_region` u **exercise 5** za dio memorije iznad `KERNBASE`.
 
+``` c
+static void
+boot_map_region_large(pde_t* pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
+{
+  for (size_t i = 0; i <= size / PTSIZE; ++i)
+  {
+    pgdir[PDX(va)] = (pa & ~0x3FFFFF) | PTE_P | PTE_PS | perm;
+
+    pa += PTSIZE;
+    va += PTSIZE;
+  }
+}
+```
+
+Petlja ima onoliko iteracija koliko će se mapirati stranica od 4MB (odnosno koliko će se napraviti PDE).
+U svakoj iteraciji pravi PDE za to mapiranje i zatim prelazi na sljedeću stranicu.
+
+`PTE_P` se obavezno mora setovati za svako mappiranje. \
+`PTE_PS` govori da se radi o mapiranju u jednom nivou, odnosno da je u pitanju mapiranje stranice od 4MB. \
+`perm` su permisije koje želimo dodijeliti ovom mapiranju. \
+`pa & ~0x3FFFFF` uzima najjačih 10 bita fizičke adrese, praktično `ROUNDDOWN` na 4MB.
+
+Razlog ovog "vađenja" 10 najjačih bita je sljedeći:
+- ako fizička adresa koja je proslijeđena ovoj funkciji (`pa`) nije zaokružena na 4MB, 
+  sprječava da ti "nepotrebni" biti (od 0 do 12) utiču na ostale flagove u PDE
+- biti od 12 do 21 su reserved ([Intel Manual](https://pdos.csail.mit.edu/6.828/2018/readings/ia32/IA32-3A.pdf), stranica 112),
+  pa za svaki slučaj sprječava pisanje u njih
+
+Možda je ovo nepotrebno, ali nek bude tu za svaki slučaj.
+Da, također je moguće da se pomoću `perm` uvedu slični problemi.
+Ovim se sprječaje slučajna greška koja nije veoma vjerovatna da se desi kod `perm`.
+Pretpostavljam da se ova funkcija neće više koristiti nakon inicijalizacije `kern_pgdir` (jer ima *boot* u imenu).
+
+Ukoliko bi se desilo da korisnički programi mogu proslijediti `perm` koji će se koristiti u funkcijama
+`boot_map_region`, `boot_map_region_large` ili `page_insert`, vratit ću se pa postaviti adekvatne zaštite u tom slučaju.
+
 Modifikovana je funkcija `check_va2pa` jer kao što je inicijalno implementirana nije adekvatna za provjeru mapiranja koje koristi stranice od 4MB.
+
+``` c
+static physaddr_t
+check_va2pa(pde_t* pgdir, uintptr_t va)
+{
+  pte_t* p;
+
+  pgdir = &pgdir[PDX(va)];
+  if (!(*pgdir & PTE_P))
+    return ~0;
+
+  //////////////////////////////////////////////
+  //                 NOVI DIO                 //
+  if (*pgdir & PTE_PS)
+    return PTE_ADDR(*pgdir) + PTX(va) * PGSIZE;
+  //////////////////////////////////////////////
+
+  p = (pte_t*)KADDR(PTE_ADDR(*pgdir));
+  if (!(p[PTX(va)] & PTE_P))
+    return ~0;
+  return PTE_ADDR(p[PTX(va)]);
+}
+```
+
+Problem je u tome što funkcija, kako je bila implementirana, traži page table (`p`) i indeksira ga koristeći `PTX`.
+Budući da se koriste stranice od 4MB, ne postoji page table za to mapiranje.
+Dakle, potrebno je vratiti fizičku adresu koja se nalazi u najjačih 10 bita PDE, umjesto od PTE (kako se radi za stranice od 4kB).
+To se radi pomoću `PTE_ADDR(*pgdir)`. Ali na to je također dodano `PTX(va) * PGSIZE`. Zašto?
+
+Za taj odgovor se treba osvrnuti na dio koda iz funkcije `check_kern_pgdir` koji provjerava ovo mapiranje (iznad `KERNBASE`):
+``` c
+static void
+check_kern_pgdir(void)
+{
+                        ...
+  // check phys mem
+  for (i = 0; i < npages * PGSIZE; i += PGSIZE)
+    assert(check_va2pa(pgdir, KERNBASE + i) == i);
+                        ...
+}
+```
+
+Petlja koja provjerava mapiranje, to radi sa korakom od 4kB.
+Dakle, `i` će uvijek biti poravnato na 4kB.
+Za slučaj mapiranja stranica od 4kB, ovo je savršeno.
+Funkcija `check_va2pa` vraća adresu iz PTE (`PTE_ADDR(p[PTX(va)])`) koja će biti poravnata na 4kB.
+Moguće je jednostavno uporediti ove dvije vrijednosti.
+Problem je u tome što sada, kada se koristi mapiranje stranica od 4MB, 
+`PTE_ADDR(*pgdir)` je adresa poravnata na 4MB, `i` je poravnato na 4kB, a `assert` unutar petlje očekuje da one budu jednake.
+Ovo se može zaobići dodavanjem odgovarajućeg *offset*a.
+Taj offset je zapravo najslabijih 22 bita virtuelne adrese, poravnato na 4kB.
+To se može dobiti uzimanjem page table indexa iz virtuelne adrese i množenjem sa veličinom jedne stranice, 
+odnosno `PTX(va) * PGSIZE`, čime se dolazi do kompletnog povratnog izraza.
+
+Pri modifikaciji funkcije `check_va2pa` vođeno je računa da i dalje bude kompatibilna sa straničenjem sa dva nivoa (stranice od 4kB).
 
 
 ## Challenge 2
@@ -897,4 +995,6 @@ Primjer ispisa:
 | BASE + SIZE    | 0xef040000 |
 +-----------------------------+
 ```
+
+
 
