@@ -145,7 +145,7 @@ region_alloc(struct Env* e, void* va, size_t len)
   {
     struct PageInfo* page;
 
-    // allocate page for enviroment
+    // allocate page for environment
     if (!(page = page_alloc(0)))
       panic("region_alloc: page allocation failed");
 
@@ -198,7 +198,7 @@ load_icode(struct Env* e, uint8_t* binary)
   if (elfh->e_magic != ELF_MAGIC)
     panic("load_icode: binary is not ELF");
 
-  // using enviroment page directory
+  // using environment page directory
   lcr3(PADDR(e->env_pgdir));
 
   // address of first header
@@ -247,9 +247,9 @@ void env_create(uint8_t* binary, enum EnvType type)
 {
   struct Env* env;
 
-  // makes a new enviroment and sets up vm
+  // makes a new environment and sets up vm
   if (env_alloc(&env, 0))
-    panic("env_create: enviroment allocation failed");
+    panic("env_create: environment allocation failed");
   load_icode(env, binary);
 
   env->env_type = type;
@@ -281,7 +281,7 @@ i ukoliko se desi to znači da se desila greška pri pokretanju okruženja.
 ``` c
 void env_run(struct Env* e)
 {
-  if (curenv) // enviroment already running
+  if (curenv) // environment already running
   {
     if (curenv->env_status == ENV_RUNNING)
       curenv->env_status = ENV_RUNNABLE;
@@ -979,6 +979,189 @@ Ispod se nalaze resursi/izvori koji su korišteni pri rješavanju ovog challenge
   - [Intel `wrmsr` documentation](https://pdos.csail.mit.edu/6.1810/2018/readings/ia32/IA32-2B.pdf#page=410)
   - [Intel `rdmsr` documentation](https://pdos.csail.mit.edu/6.1810/2018/readings/ia32/IA32-2B.pdf#page=246)
 
+Kako bi se omogućilo korištenje instrukcija `sysenter` i `sysexit` za sistemske pozive potrebno je postaviti MSR-e.
+MSR (Model Specific Register) je naziv za posebne registre koji se ne nalaze u svim Intel procesorima.
+Za ovaj challenge od značaja su registri `SYSENTER_CS`, `SYSENTER_ESP` i `SYSENTER_EIP`.
+MSR-ima se pristupa pomoću posebnih instrukcija. Te instrukcije su `wrmsr` za pisanje u MSR i `rdmsr` za čitanje sadržaja MSR.
+Pomenute instrukcije kao jedan od argumenata primaju posebnu adresu koja govori kojem se MSR želi pristupiti.
+Te adrese su definisane u [`trap.h`](../inc/trap.h):
+``` c
+#define MSR_SYSENTER_CS  0x174
+#define MSR_SYSENTER_ESP 0x175
+#define MSR_SYSENTER_EIP 0x176
+```
+
+Sistemski pozivi pomoću instrukcija `sysenter` i `sysexit` ne koriste "običnu" metodologiju prekida kao sistemski pozivi sa instrukcijom `int`.
+Umjesto toga, pri izvršenju instrukcije `sysenter` procesor vrijednosti za `%cs`, `%eip`, `%ss` i `%esp` određuje na osnovu sadržaja u relevantnim MSR.
+U registar `SYSENTER_CS` se učitaje selektor za kernel code segment koji će se koristiti pri tretiranju sistemskih prekida. \
+U registar `SYSENTER_EIP` se učitanje adresa na kojoj se nalazi kod za tretiranje sistemskih prekida. \
+U registar `SYSENTER_ESP` se učitaje adresa gdje se nalazi početak stack-a koji će se koristiti pri tretiranju sistemskih prekida. \
+Vrijednost za `%ss` se indirektno učitaje na osnovu `SYSENTER_CS` tako što se na vrijednost iz tog registra doda `8` i učita u `%ss`.
+Ovo znači da kernel data segment deskriptor u GDT mora biti odma nakon kernel code segment deskriptora.
+Ovo je već postavljeno i te definicije se nalaze u [`memlayout.h`](../inc/memlayout.h):
+``` c
+#define GD_KT      0x08 // kernel text
+#define GD_KD      0x10 // kernel data
+```
+
+Dakle, potrebno je inicijalizirati MSR.
+Kako bi se olakšalo korištenje instrukcija za manipulaciju MSR, u [`x86.h`](../inc/x86.h) dodane su sljedeći makroi:
+``` c
+#define rdmsr(msr, val1, val2) \
+  __asm__ __volatile__("rdmsr" \
+    : "=a"(val1), "=d"(val2)   \
+    : "c"(msr))
+
+#define wrmsr(msr, val1, val2) \
+  __asm__ __volatile__("wrmsr" \
+    : /* no outputs */         \
+    : "c"(msr), "a"(val1), "d"(val2))
+```
+
+Za inicijalizaciju relevantnih MSR je implementirana funkcija `msr_init` u fajlu [`trap.c`](../kern/trap.c):
+``` c
+void msr_init(void)
+{
+  void th_sysenter(void);
+  wrmsr(MSR_SYSENTER_CS, GD_KT, 0x0);
+  wrmsr(MSR_SYSENTER_ESP, KSTACKTOP, 0x0);
+  wrmsr(MSR_SYSENTER_EIP, th_sysenter, 0x0);
+}
+```
+i poziva se u [`init.c`](../kern/init.c) nakon inicijalizacije prekida:
+``` c
+void i386_init(void)
+{
+         ...
+  trap_init();
+  msr_init();  // <=======
+         ...
+  env_run(&envs[0]);
+}
+```
+
+U funkciji `msr_init`, `th_sysenter` je pointer na funkciju koja tretira sistemske pozive nastale putem instrukcije `sysenter`.
+Ova funkcija je definisana u asembleru i biti će objašnjena nešto kasnije.
+
+Dalje, potrebno je modifikovati funkciju `syscall` u [`lib/syscall.c`](../lib/syscall.c) tako da koristi instrukciju `sysenter` za sistemske pozive.
+Ispod se nalazi ta implementacija:
+``` c
+static inline int32_t
+syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+{
+  int32_t ret;
+
+  asm volatile(
+    "movl %0, %%esi\n"
+    :
+    : "g"(&&_syscall_ret)
+    : "esi", "cc", "memory");
+
+  asm volatile(
+    "pushl %%ebp\n"
+    "movl %%esp, %%ebp\n"
+    "sysenter\n"
+    : "=a"(ret)
+    : "a"(num),
+    "d"(a1),
+    "c"(a2),
+    "b"(a3),
+    "D"(a4)
+    : "cc", "memory");
+
+_syscall_ret:
+  asm volatile(
+    "popl %%ebp\n"
+    :
+    :
+    : "cc", "memory");
+           ...
+  return ret;
+}
+```
+
+Ovo se sigurno moglo uraditi na ljepši i elegantniji način, ali prvi put koristim GCC inline assembly i jednostavno sam sretan što sam uspio napraviti da radi.
+Kako god, ispod slijedi objašnjenje.
+
+Instrukcija `sysenter` ne "pamti" povratnu vrijednost za `%eip` i `%esp` kao što to radi instrukcija `call`.
+Zbog toga, potrebno je "ručno" spremiti ove vrijednosti.
+Label `_syscall_ret` je postavljen kao lokacija (adresa) od koje procesor treba nastaviti izvršavati kod nakon tretiranja sistemskog poziva.
+Adresa koju ovaj label predstavlja je učitana u registar `%esi` pomoću GCC inline asemblera, a dobija se pomoću `&&_syscall_ret`.
+Također je potrebno pohraniti `%esp`.
+`%esp` se pohranjuje u `%ebp`, a stara vrijednost `%ebp` se pohranjuje na stack-u.
+Nakon ovoga se pomoću inline asemblera u registre `%eax`, `%edx`, `%ecx`, `%ebx` i `%edi` pohranjuju broj sistemskog poziva i argumenti za sistemski poziv.
+Ove specifikacije su predložene u tekstu challenge-a.
+Nakon povratka iz sistemskog poziva se vraća prethodno pohranjena vrijednost `%ebp`.
+
+Zašto ne spremiti povratne vrijednosti na stack? \
+Instrukcijom `sysenter` procesor prelazi u kernel mode na prethodno navedeni način i time koristi kernel stack.
+Funkcija `syscall` u [`lib/syscall.c`](../lib/syscall.c) je funkcija u user okruženju i time koristi svoj user stack.
+Budući da su povratne vrijednosti za `%eip` i `%esp` neophodne za povratak iz sistemskog poziva,
+a tretiranjem sistemskog poziva se mijenja stack, nije pametno pohraniti ih na stack.
+Tehnički bi bilo moguće, jer kernel ima pristup i user stacku od datog okruženja, 
+ali mi se ne čini baš praktično i ovaj pristup mi se više sviđa i čini elegantnijim i efikasnijim.
+
+Ostalo je još pogledati šta se desi nakon izvršenja instrukcije `sysenter` i kako se vraća iz sistemskog poziva.
+
+Izvršenjem instrukcije `sysenter` se počinje izvršavati asembler funkcija `th_sysenter`, jer je tako prethodno konfigurisano.
+Funkcija `th_sysenter` je implementirana u [`trapentry.S`](../kern/trapentry.S):
+``` asm
+.globl th_sysenter
+th_sysenter:
+  # save user %eip
+  pushl %esi
+  # save user %esp
+  pushl %ebp
+
+  # prepare syscall arguments
+  pushl $0
+  pushl %edi
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+  pushl %eax
+
+  call syscall
+
+  # skip over syscall arguments
+  addl $24, %esp
+  # set up %esp for sysexit
+  popl %ecx
+  # set up %eip for sysexit
+  popl %edx
+
+  sysexit
+```
+
+Sada se povratne vrijednosti za `%eip` (adresa labela `_syscall_ret`) i `%esp` (user stack) pohranjuju na (kernel) stack.
+
+Dalje, pripremaju se argumenti za sistemski poziv.
+Sistemski poziv se obavlja funkcijom `syscall`.
+Ova funkcija `syscall` je definisana u [`kern/syscall.c`](../kern/syscall.c).
+Budući da je ovo C funkcija, očekivati će argumente na stack-u, pa se argumenti iz registara push-aju na stack.
+Kao peti argument se push-a vrijednost `0`, jer, kako je navedeno u tekstu challenge-a, sistemski pozivi implementirani na ovaj način primaju 4 argumenta.
+Peti argument nije izbrisan iz potpisa funkcija `syscall` kako bi se ostavila mogućnost lahkog povratka na sistemski poziv implementiran pomoću instrukcije `int`.
+Nakon što su pripremljeni argumenti, poziva se funkcija `syscall` koja je prethodno implementirana i obavlja sistemski poziv.
+Nakon povratka iz funkcije `syscall` stack se smanjuje za veličinu `syscall` argumenata.
+
+Na kraju se priprema za izlazak iz sistemskog poziva pomoću instrukcije `sysexit`.
+Izvršenjem instrukcije `sysexit` registar `%cs` se postavlja na vrijednost iz registra `SYSENTER_CS + 16`,
+registar `%ss` se postavlja na vrijednost iz registra `SYSENTER_CS + 24`,
+registar `%eip` se postavlja na vrijednost iz registra `%edx` i
+registar `%esp` se postavlja na vrijednost iz registra `%ecx`.
+Vrijednosti `SYSENTER_CS + 16` i `SYSENTER_CS + 24` odgovaraju selektorima za user code i user data segmente respektivno,
+koji su kao i kernel code i kernel data segment selektori prethodno definisani na odgovarajući način u [`memlayout.h`](../inc/memlayout.h):
+``` c
+#define GD_KT      0x08 // kernel text
+#define GD_KD      0x10 // kernel data
+#define GD_UT      0x18 // user text
+#define GD_UD      0x20 // user data
+```
+Na početku funkcije su vrijednosti za `%eip` i `%esp` pohranjene na stack,
+pa je jednostavno potrebno pop-ovati te vrijednosti sa stack-a u odgovarajuće registre.
+Nakon svega ovoga izvršava se instrukcija `sysexit`, čime se izvršavaje nastavlja od `_syscall_ret`.
+Ovime se zaključuje tretiranje sistemskog poziva.
+
 
 ## Exercise 8
 `thisenv` je globalna varijabla koju ima svaki proces (okruženje) i predstavlja pointer na to okruženje u nizu `envs`.
@@ -1146,3 +1329,5 @@ Destroyed the only environment - nothing more to do!
                        ...
 ```
 što je upravo ono što i treba da se desi.
+
+
