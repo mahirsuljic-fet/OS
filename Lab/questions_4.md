@@ -62,3 +62,30 @@
 - Koja je svrha funkcije `pgfault`, šta ona radi?
 - Kada se poziva funkcija `pgfault`?
 - Na koji način radi funkcija `pgfault`?
+
+# Part C
+- Šta je LAPIC?
+- Koja je razlika između IRQ i prekida koji su implementirani u lab 3?
+- Kako se generišu IRQ? Odakle dolaze?
+- Šta je `IRQ_OFFSET` i zašto se koristi?
+- Zašto je vrijednost `IRQ_OFFSET` postavljena na 32? \
+  Da li je bilo moguće koristiti neku drugu vrijednost? \
+  Koja je najmanja vrijednost koja bi se trebala koristiti? Zašto?
+- Šta diktira da li su prekidi uključeni ili ne? \
+  (Konkretno u hardveru)
+- Koji su načini uključivanja/isljučivanja prekida (bar 2)?
+- Šta je timer? \
+  Zašto je potreban? \
+  Koji su mogući problemi da timer ne postoji?
+- Šta procesor treba uraditi kada završi tretiranje prekida? \
+  (Vezano za LAPIC)
+- Šta je IPC?
+- Šta se može razmjenjivati pomoću IPC?
+- Na koji način radi primanje IPC poruke? \
+  Koja polja `struct Env` okruženja i kako se promijene za okruženje koje čeka poruku?
+- Na koji način radi slanje IPC poruke?
+- Kako okruženje označava da želi ili ne želi primati/slati stranicu?
+- Na koji način se dijele stranice pomoću IPC?
+- Ako dva okruženja dijele neku stranicu, da li se korištenje te stranice odvija sa pomoći kernela ili kernel više nema veze sa tim?
+- Šta ako jedno okruženje šalje poruku drugom okruženju koje nije spremno da primi poruku? Šta se desi u tom slučaju? Kako je ovo implementirano?
+- Kako radi program `primes`?
