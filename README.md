@@ -51,3 +51,28 @@ Ukoliko se skine okruženje i u nekog kraćem periodu (npr. 1 dan) izađe nova v
 ### [XV6 github repository](https://github.com/mit-pdos/xv6-public)
 
 ### [JOS github repository](https://github.com/phlalx/jos)
+
+-------------------------
+
+## YouTube
+
+### Kanali
+- [**Core Dumped**](https://www.youtube.com/@CoreDumpped)
+- [Low Byte Productions](https://www.youtube.com/@LowByteProductions)
+
+### Videi
+
+#### Lab 1
+- [Boot proces](https://www.youtube.com/watch?v=KkenLT8S9Hs)
+
+#### Lab 2
+- [Virtuelna memorija](https://www.youtube.com/watch?v=A9WLYbE0p-I)
+
+#### Lab 3
+- [Procesi](https://www.youtube.com/watch?v=LDhoD4IVElk)
+- [Razlika između programa i procesa](https://www.youtube.com/watch?v=7ge7u5VUSbE)
+- [Prekidi, protekcija, sistemski pozivi](https://www.youtube.com/watch?v=H4SDPLiUnv4)
+
+#### Lab 4
+- ["Istovremeno" izvršavanje procesa](https://www.youtube.com/watch?v=3X93PnKRNUo)
+- [IPC](https://www.youtube.com/watch?v=Y2mDwW2pMv4)
