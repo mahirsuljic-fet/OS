@@ -30,3 +30,35 @@
 - Šta radi sistemski poziv `sys_exofork`?
 - Koja je najviša adresa koju korisnička okruženja smiju mijenjati?
 - Koja je najviša adresa koju korisnička okruženja smiju čitati?
+
+# Part B
+- Šta je i za šta se koristi `env_pgfault_upcall`?
+- Koja je razlika između tretiranja page faulta u `trap` i pomoću upcall funkcije?
+- Koliko stackova svako okruženje ima? Koji su to?
+- Koji se stack koristi za tretiranje iznimki u user modu?
+- Na koji način se tretira page fault u user modu? \
+  Koji je posao kernela u tom slučaju?
+- Koja je razlika pri tretiranju paga faulta koji se desio dok se koristio exception stack i "obični" stack?
+- Koji je mogući način tretiranja page faulta koji se desio usljed ispunjavanja cijelog stacka okruženja?
+- Šta se desi ako okruženje popuni cijeli svoj exception stack? Ko i kako tretira tu situaciju?
+- Šta radi funkcija `_pgfault_upcall`?
+- Kako se implementira funkcija `_pgfault_upcall`?
+- Koje su poteškoće/ograničenja pri implementaciji funkcije `_pgfault_upcall`?
+- U kojem modu je procesor kada se pozove `_pgfault_upcall` i koji se stack koristi? \
+  Da li se koristi isti stack prije poziva, u toku poziva i posle poziva funkcije `_pgfault_upcall`?
+- Šta je fork i za šta služi?
+- Šta radi parent okruženje prilikom fork-a, a šta child okruženje?
+- Prilikom fork-anja, šta sve parent okruženje mora uraditi nakon poziva `sys_exofork`?
+- Kada se child okruženje stekne uslove da se može izvršavati, a kada se krene izvršavati?
+- Kroz koja stanja child okruženje prođe prilikom fork-anja?
+- Zašto je potrebno promijeniti `thisenv` u child okruženju prilikom fork-a?
+- Kako je moguće znati da li je okruženje koje se izvršava parent ili child okruženje?
+- Šta je copy-on-write fork?
+- Koja je razlika između implementacije fork-a u JOS i XV6?
+- Šta radi funkcija `duppage`?
+- Gdje se nalazi oznaka za copy-on-write (`PTE_COW`)? \
+  (Ne u kojem fajlu, nego u memoriji, u kojoj strukturi?) \
+  Koji se biti koriste za tu namjenu?
+- Koja je svrha funkcije `pgfault`, šta ona radi?
+- Kada se poziva funkcija `pgfault`?
+- Na koji način radi funkcija `pgfault`?
