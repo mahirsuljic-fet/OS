@@ -1740,3 +1740,9 @@ Pri zapisivanju vrijednosti u pointere `from_env_store` i `perm_store` bitno je 
 Uklonjena je petlja u funkciji `ipc_send`, reimplementiarn je dispatch za sistemski poziv `sys_ipc_try_send`
 i implementirana je funkcionalnost gdje okruženje koje želi poslati poruku ne koristi CPU sve dok okruženje kojem
 šalje poruku ne bude spremno da je primi.
+
+
+## Challenge 9
+Implementiran program [`ipcmatrixmult`](../user/ipcmatrixmult.c) koji vrši množenje stream-a ulaznih vektora sa matricom na osnovu 
+[*C. A. R. Hoare, "Communicating Sequential Processes"*](https://dl.acm.org/doi/pdf/10.1145/359576.359585#page=9).
+Implementiran je na način da je moguće koristiti matricu (i vektore) proizvoljnog reda, umjesto samo 3x3.
