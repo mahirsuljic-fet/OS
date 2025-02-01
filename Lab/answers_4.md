@@ -630,6 +630,13 @@ Sljedeći puta kada se to okruženje bude pokretalo, kernel će ga naći u nizu 
 i učitati ga u procesor čime se to okruženje nastavlja izvršavati tačno od onog stanja u kojem je bilo kada je prekinuto.
 
 
+## Challenge 2
+Dodani prioriteti za okruženja u [`env.h`](../inc/env.h).
+Implementiran fixed priority scheduling u [`sched.c`](../kern/sched.c).
+Implementiran sistemski poziv [`sys_env_set_priority`](../kern/syscall.c).
+Dodan novi program [`fpschedtest`](../user/fpschedtest.c) za testiranje novog scheduling-a.
+
+
 # System Calls for Environment Creation
 
 ## Exercise 7
