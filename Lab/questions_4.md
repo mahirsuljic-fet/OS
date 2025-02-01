@@ -1,3 +1,10 @@
+Ispod se nalazi lista pitanja koja su mi pala na pamet prilikom učenja za provjeru 4.
+Ovo nisu pitanja koja su bila ili koja će doći na testu.
+Pored navedenih pitanja također su veoma bitna 4 pitanja iz [`Lab 4`](https://pdos.csail.mit.edu/6.828/2018/labs/lab4/).
+Odgovore na ta pitanja, kao i većinu pitanja ispod se nalaze u mojem [`izveštaju`](./answers_4.md) za lab 4.
+
+Sretno svima na zadnjoj provjeri.
+
 # Part A
 - Za šta se koristi dio memorije između `MMIOBASE` i `MMIOLIM`?
 - Zašto je bilo neophodno promijeniti funkciju `page_init` i kako je promijenjena?
