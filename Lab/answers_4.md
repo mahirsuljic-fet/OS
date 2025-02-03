@@ -1401,6 +1401,121 @@ Stranica u kojoj je adresa koja je izazvala page fault se kopira u novo-alociran
 Dalje, ta novo-alocirana stranica se mapira na adresu stranice koja je izazvala page fault, a stranica mapirana na `PFTEMP` se demapira.
 
 
+#### Note: The ordering here (i.e., marking a page as COW in the child before marking it in the parent) actually matters! Can you see why? Try to think of a specific case where reversing the order could cause trouble.
+*Pitanje se nalazi u tekstu iznad* ***exercise 12*** *u [Lab 4](https://pdos.csail.mit.edu/6.828/2018/labs/lab4/).*
+
+Pretpostavimo da se redoslijed zamijeni, tako da se prvo stranica mapira u parent adresni prostor kao COW, a zatim u child adresni prostor kao COW.
+Većina stranica se normalno mapira i ne predtsavlja problem, međutim, problem nastaje kada se pokuša mapirati stranica koja sadrži stack.
+
+Zašto stack predstavlja problem?
+
+Pogledajmo kod u pitanju iz fajla [`fork.c`](../lib/fork.c) (sa navedenim pretpostavkama):
+``` c
+static int
+duppage(envid_t child_envid, unsigned pn)
+{
+                                      ...
+  // check if page is writable or copy-on-write
+  if (pte & PTE_W || pte & PTE_COW)
+  {
+                                      ...
+    // remap page in parent environment, now copy-on-write
+    err = sys_page_map(parent_envid, (void*)va, parent_envid, (void*)va, perm);
+                                      ...
+    // map page in child environment
+    err = sys_page_map(parent_envid, (void*)va, child_envid, (void*)va, perm);
+  }
+                                      ...
+}
+```
+Mapiranje stranice u parent okruženje se izvrši uredno.
+Kako bi se izvršio poziv funkcije `sys_page_map` potrebno je pripremiti argumente za tu funkciju na stacku.
+Pripremanje argumenata na stacku zahtijeva pisanje na stack.
+Dakle, prije poziva `sys_page_map` za child okruženje desit će se pisanje na stacku.
+Ako je stranica koja se mapira stranica na kojoj se nalazi stack, upravo u nju se vrši pisanje, a ona je sada označena kao COW.
+Dešava se page fault, kernel delegira tretiranje page faulta okruženju, poziva se funkcija `_pgfault_upcall` iz [`pfentry.S`](../lib/pfentry.S)
+koja dalje poziva `pgfault` iz [`fork.c`](../lib/fork.c).
+
+Pogledajmo šta se dešava u `pgfault`:
+``` c
+static void
+pgfault(struct UTrapframe* utf)
+{
+                    ...
+  // allocate new page and map it to PFTEMP
+  r = sys_page_alloc(envid, PFTEMP, PTE_W);
+                    ...
+  // copy data from old page to new page
+  memcpy(PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
+
+  // map the new page at the old page address
+  r = sys_page_map(envid, PFTEMP, envid, ROUNDDOWN(addr, PGSIZE), PTE_U | PTE_W);
+                    ...
+  // unmap temp page
+  r = sys_page_unmap(envid, PFTEMP);
+                    ...
+}
+```
+
+`pgfault` kopira sadržaj COW stranice u novu stranicu i mapira je na adresu COW stranice pomoću `sys_page_map`.
+Sistemski poziv `sys_page_map` to radi pomoću funkcije `page_insert`.
+Budući da se na toj adresi već nalazila stranica (COW stranica), `page_insert` je "odmapira" pomoću funkcije `page_remove`.
+Funkcija `page_remove` smanji brojač referenci za tu stranicu pomoću funkcije `page_decref`.
+Budući da je COW stranica imala samo jednu referencu (u parent okruženju), 
+funkcija `page_decref` dalje poziva funkciju `page_free` koja oslobađa tu stranicu.
+Pri povratku iz `pgfault` poziva se `sys_page_map` za child okruženje.
+
+Sada je situacija sljedeća.
+U parent okruženju stack je writable i nije COW.
+U child okruženju stack je COW.
+U trenutku kada child okruženje izvrši pisanje na stack desiti će se page fault i child okruženje će dobiti 
+svoju kopiju nove stranice koja je alocirana u parent okruženju (stara je oslobođena).
+Međutim, prije toga child okruženje može čitati vrijednosti sa stacka, 
+a parent okruženje može mijenjati vrijednosti sa stacka jer je writable i nije COW.
+Rezultat ovoga je mogućnost da child okruženje čita pogrešne podatke sa stacka.
+Ovo je jasno veoma loše.
+
+Ovaj problem se zaobilazi tako što se prvo mapira stranica u child okruženje, a zatim u parent okruženje.
+U tom slučaju, kada parent izvrši pisanje na stack, dobija svoju kopiju stacka, 
+ali `page_insert` ne oslobađa orginalnu stranicu jer je mapirana u child okruženju.
+Zatim kada child izvrši pisanje dobiti će kopiju orginalne stranice, pri čemu se tada orginalna stranica oslobađa
+(ako pretpostavimo da je niko drugi ne koristi).
+
+Dakle, glavna razlika je u tome što u slučaju child pa parent, child dobije kopiju stranice prije nego što je parent počne mijenjati,
+a u slučaju parent pa child, child dobije kopiju stranice tek kada izvrši pisanje, pri čemu u međuvremenu parent može mijenjati tu stranicu.
+
+
+#### Why do we need to mark ours copy-on-write again if it was already copy-on-write at the beginning of this function? 
+*Pitanje se nalazi u komentaru iznad funkcije `duppage` u fajlu [`fork.c`](../lib/fork.c).*
+
+Odgovor na ovo pitanje je sličan odgovoru na prethodno pitanje.
+Uzmimo za primjer sljedeći slučaj.
+Stranica koja se mapira je stack.
+Ta stanica je COW u parent okruženju (prije poziva `duppage`).
+U `duppage` se ta stranica mapira samo u child okruženje kao COW.
+
+Pogledajmo relevantni kod za funkciju `duppage` iz fajla [`fork.c`](../lib/fork.c) (sa navedenim pretpostavkama):
+``` c
+static int
+duppage(envid_t child_envid, unsigned pn)
+{
+                                      ...
+  // check if page is writable or copy-on-write
+  if (pte & PTE_W || pte & PTE_COW)
+  {
+                                      ...
+    // map page in child environment
+    err = sys_page_map(parent_envid, (void*)va, child_envid, (void*)va, perm);
+  }
+                                      ...
+}
+```
+U najmanju ruku, parent okruženje mora pripremiti argumente za poziv `sys_page_map` kako bi se stranica mapirala u child okruženje.
+Priprema argumenata podrazumijeva pisanje na stack što prouzrokuje page fault jer je stranica u pitanju stack i označena je kao COW.
+Nakon što se page fault tretira, stranica u pitanju više neće biti označena kao COW u parent okruženju, nego će biti writable.
+Dešava se isti problem kao i u prethodnom pitanju gdje stranica u parent okruženju je writable, a u child okruženju je COW.
+
+
 ## Challenge 6
 `sfork` je implementiran u fajlu [`fork.c`](../lib/fork.c).
 Promijenjena je funkcionalnost `thisenv` tako da u svakom okruženju pokazuje na to okruženje.
