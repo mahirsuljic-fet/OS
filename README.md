@@ -12,6 +12,14 @@ Operativni sistemi (OS)
   - [Intel 64 and IA-32 Architectures Software Developer’s Manual - Combined Volumes 2024](./Literatura/IA32_Assembly_Language_Reference_Manual_Volume_Combined_Volumes_2024.pdf)
   - [IA-32 Assembly Language Reference Manual](./Literatura/IA-32_Assembly_Language_Reference_Manual.pdf)           
 
+### YouTube
+- [**Core Dumped**](https://www.youtube.com/@CoreDumpped)
+- [Low Byte Productions](https://www.youtube.com/@LowByteProductions)
+- [Neso Academy](https://www.youtube.com/@nesoacademy)
+- [Dave's Garage](https://www.youtube.com/@DavesGarage)
+- [Computerphile](https://www.youtube.com/@Computerphile)
+- [Low Level](https://www.youtube.com/@LowLevelTV)
+
 ## [Predavanja](./Predavanja)
 Bilješke sa predavanja.
 
