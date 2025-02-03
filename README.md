@@ -16,25 +16,17 @@ Operativni sistemi (OS)
   - [*Instrukcije N-Z* - Intel 64 and IA-32 Architectures Software Developer’s Manual Volume 2B - 2007](https://pdos.csail.mit.edu/6.828/2018/readings/ia32/IA32-2B.pdf)
   - [*(Otprilike) sve ostalo* - Intel 64 and IA-32 Architectures Software Developer’s Manual Volume 3A - 2007](https://pdos.csail.mit.edu/6.828/2018/readings/ia32/IA32-3A.pdf)
 
-### YouTube
-- [**Core Dumped**](https://www.youtube.com/@CoreDumpped)
-- [Low Byte Productions](https://www.youtube.com/@LowByteProductions)
-- [Neso Academy](https://www.youtube.com/@nesoacademy)
-- [Dave's Garage](https://www.youtube.com/@DavesGarage)
-- [Computerphile](https://www.youtube.com/@Computerphile)
-- [Low Level](https://www.youtube.com/@LowLevelTV)
-
 ## [Predavanja](./Predavanja)
 Bilješke sa predavanja.
 
 ## [Prezentacije](./Prezentacije)
 Profesorove prezentacije iz predmeta.
 
-## [Vjezbe](./Vjezbe)
+## [Vježbe](./Vjezbe)
 Kod i primjeri sa vježbi.
 
 ## [Labs](./Lab)
-Odgovori na pitanja iz zadaća (MIT lab-ova).
+Rješenja lab-ova.
 
 ### [Skripta za instalaciju/update okruženja](./getosshell.sh)
 Za pokretanje skripte koristi se komanda `. ./getosshell.sh` pri čemu je potrebno biti u direktoriji gdje se nalazi `getosshell.sh`.
@@ -44,33 +36,17 @@ Skripta automatski skine najnoviju verziju okruženja, odradi sve što je potreb
 Ukoliko se skine okruženje i u nekog kraćem periodu (npr. 1 dan) izađe nova verzija okruženja neće biti moguće preuzeti novu verziju dok ne prođe taj period.
 Čekanje se može zaobići brisanjem cache-a komandom `rm -rf ~/.cache/nix/`.
 
--------------------------
-
-### [MIT 6.828](https://pdos.csail.mit.edu/6.828/2018/overview.html)
-
-### [OSdev wiki](https://wiki.osdev.org/)
-
-### [Intel 80386 Reference Programmer's Manual](https://pdos.csail.mit.edu/6.828/2018/readings/i386/toc.htm)
-
-### [x86 instrukcije (MIT)](https://pdos.csail.mit.edu/6.828/2018/readings/i386/c17.htm)
-
-### [x86 instrukcije (felixcloutier)](https://www.felixcloutier.com/x86/)
-
-### [x86 instrukcije (c9x)](https://c9x.me/x86/)
-
-### [Git cheatsheet](https://education.github.com/git-cheat-sheet-education.pdf)
-
-### [XV6 github repository](https://github.com/mit-pdos/xv6-public)
-
-### [JOS github repository](https://github.com/phlalx/jos)
-
--------------------------
+---
 
 ## YouTube
 
 ### Kanali
 - [**Core Dumped**](https://www.youtube.com/@CoreDumpped)
 - [Low Byte Productions](https://www.youtube.com/@LowByteProductions)
+- [Neso Academy](https://www.youtube.com/@nesoacademy)
+- [Dave's Garage](https://www.youtube.com/@DavesGarage)
+- [Computerphile](https://www.youtube.com/@Computerphile)
+- [Low Level](https://www.youtube.com/@LowLevelTV)
 
 ### Videi
 
@@ -88,3 +64,23 @@ Ukoliko se skine okruženje i u nekog kraćem periodu (npr. 1 dan) izađe nova v
 #### Lab 4
 - ["Istovremeno" izvršavanje procesa](https://www.youtube.com/watch?v=3X93PnKRNUo)
 - [IPC](https://www.youtube.com/watch?v=Y2mDwW2pMv4)
+
+---
+
+## Ostali korisni linkovi
+
+### [MIT 6.828](https://pdos.csail.mit.edu/6.828/2018/overview.html)
+
+### [OSdev wiki](https://wiki.osdev.org/)
+
+### [Intel 80386 Reference Programmer's Manual](https://pdos.csail.mit.edu/6.828/2018/readings/i386/toc.htm)
+
+### [x86 instrukcije (MIT)](https://pdos.csail.mit.edu/6.828/2018/readings/i386/c17.htm)
+
+### [x86 instrukcije (felixcloutier)](https://www.felixcloutier.com/x86/)
+
+### [x86 instrukcije (c9x)](https://c9x.me/x86/)
+
+### [Git cheatsheet](https://education.github.com/git-cheat-sheet-education.pdf)
+
+### [XV6 github repository](https://github.com/mit-pdos/xv6-public)
