@@ -10,3 +10,4 @@ Ostali linkovi bi trebali raditi.
 ## Ostalo
 - ### [Opisi funkcija, varijabli i slično](./notes.md)
 - ### [Izgled memorije za lab 1](./PC_State.jpg)
+- ### [Pitanja za lab 4](./questions_4.md)
