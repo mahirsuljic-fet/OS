@@ -8,6 +8,6 @@ U rješenjima lab-ova postoje linkovi na fajlove koji ne rade jer ova rješenja 
 Ostali linkovi bi trebali raditi.
 
 ## Ostalo
-- ### [Opisi funkcija, varijabli i slično](./notes.md)
-- ### [Izgled memorije za lab 1](./PC_State.jpg)
-- ### [Pitanja za lab 4](./questions_4.md)
+- ### [Lab 1 - Izgled memorije](./Lab1_MemState.jpg)
+- ### [Lab 2 - Opisi funkcija, varijabli i slično](./Lab2_notes.md)
+- ### [Lab 4 - Pitanja](./Lab4_questions.md)
