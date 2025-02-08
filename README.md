@@ -42,6 +42,63 @@ Potrebno je samo pokrenuti ovu skriptu u direktoriji gdje se nalazi JOS nakon č
 Skripta se pokreće pomoću `. ./make_compile_commands.sh`. Nakon toga bi errori trebali nestati.
 Prilikom dodavanja novih fajlova (npr. kada se izvrši merge sa novim lab-om) potrebno je ponovo pokrenuti ovu skriptu.
 
+### Problem sa automatskim include standardne biblioteke
+Mnoge Neovim konfiguracije automatski uključuju headere iz standardne biblioteke .
+Npr. kada se napiše `printf` i pritisne enter doda se `#include <stdio.h>` na početak fajla što će izazvati grešku pri kompajliranju.
+Ovo se može isključiti tako što se LSP-u kaže da to ne radi.
+Potrebno je postaviti `header-insertion=never`.
+Default vrijednost je `header-insertion=iwyu`.
+
+Ukoliko se koristi Lazy i Mason (konkretnije NvChad), u fajlu `~/.config/nvim/lua/configs/lspconfig.lua` je potrebno dodati dio koga označen ispod (između ---).
+Ostali argumenti su dodani za bolju funkcionalnost.
+
+``` lua
+local on_attach = require("nvchad.configs.lspconfig").on_attach
+local on_init = require("nvchad.configs.lspconfig").on_init
+local capabilities = require("nvchad.configs.lspconfig").capabilities
+
+local lspconfig = require "lspconfig"
+local servers = { "html", "cssls", "clangd" }
+
+-------------------------------------------------------
+lspconfig.clangd.setup {
+  cmd = {
+    "clangd",
+    "--clang-tidy",
+    "--enable-config",
+    "--background-index",
+    "--cross-file-rename",
+    "--all-scopes-completion",
+    "--completion-style=detailed",
+    "--function-arg-placeholders",
+    "--header-insertion=never", -- <<<<<<<<<<<<<<<<<<<<
+  },
+  capabilities = capabilities,
+}
+-------------------------------------------------------
+
+for _, lsp in ipairs(servers) do
+  lspconfig[lsp].setup {
+    on_attach = on_attach,
+    on_init = on_init,
+    capabilities = capabilities,
+  }
+end
+```
+
+Za ponovo uključivanje dodavanja headera potrebno je vratiti `header-insertion` na `iwyu`:
+``` lua
+              ...
+lspconfig.clangd.setup {
+  cmd = {
+              ...
+    "--header-insertion=iwyu", -- <<<<<<<<<<<<<<<<<<<<
+  },
+              ...
+}
+              ...
+```
+
 ---
 
 ## YouTube
