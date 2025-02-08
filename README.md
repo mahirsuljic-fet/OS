@@ -36,6 +36,12 @@ Skripta automatski skine najnoviju verziju okruženja, odradi sve što je potreb
 Ukoliko se skine okruženje i u nekog kraćem periodu (npr. 1 dan) izađe nova verzija okruženja neće biti moguće preuzeti novu verziju dok ne prođe taj period.
 Čekanje se može zaobići brisanjem cache-a komandom `rm -rf ~/.cache/nix/`.
 
+### [Skripta za kreiranje compile komandi](./make_compile_commands.sh)
+Ukoliko neko koristi svoj Neovim setup moguće da se u Neovim-u prikazuje puno errora iako se JOS kompajlira.
+Potrebno je samo pokrenuti ovu skriptu u direktoriji gdje se nalazi JOS nakon čega će se napraviti fajl `compile_commands.json`.
+Skripta se pokreće pomoću `. ./make_compile_commands.sh`. Nakon toga bi errori trebali nestati.
+Prilikom dodavanja novih fajlova (npr. kada se izvrši merge sa novim lab-om) potrebno je ponovo pokrenuti ovu skriptu.
+
 ---
 
 ## YouTube
