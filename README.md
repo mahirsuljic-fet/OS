@@ -19,11 +19,11 @@ Boldirano je meni bilo najkorisnije.
   - [Xv6 a Simple Unix-Like Teaching Operating System](./Literatura/Xv6_a_Simple_Unix-Like_Teaching_Operating_System.pdf)   
   - [Operating System Concepts](./Literatura/Operating_System_Concepts.pdf)                          
   - [Modern Operating Systems](./Literatura/Modern_Operating_Systems.pdf)                           
-- Priručnici
+- [Priručnici](./Literatura/)
   - [Intel 64 and IA-32 Architectures Software Developer’s Manual - Volume 3A 2007](./Literatura/IA32_Assembly_Language_Reference_Manual_Volume_3A_2007.pdf)
   - [Intel 64 and IA-32 Architectures Software Developer’s Manual - Combined Volumes 2024](./Literatura/IA32_Assembly_Language_Reference_Manual_Volume_Combined_Volumes_2024.pdf)
   - [IA-32 Assembly Language Reference Manual](./Literatura/IA-32_Assembly_Language_Reference_Manual.pdf)           
-- Eksterni linkovi za knjige (najkorisniji)
+- Eksterni linkovi za priručnike
   - [*Instrukcije A-M* - Intel 64 and IA-32 Architectures Software Developer’s Manual Volume 2A - 2007](https://pdos.csail.mit.edu/6.828/2018/readings/ia32/IA32-2A.pdf)
   - [*Instrukcije N-Z* - Intel 64 and IA-32 Architectures Software Developer’s Manual Volume 2B - 2007](https://pdos.csail.mit.edu/6.828/2018/readings/ia32/IA32-2B.pdf)
   - [***(Otprilike) sve ostalo*** **- Intel 64 and IA-32 Architectures Software Developer’s Manual Volume 3A - 2007**](https://pdos.csail.mit.edu/6.828/2018/readings/ia32/IA32-3A.pdf)
