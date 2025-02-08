@@ -99,6 +99,29 @@ lspconfig.clangd.setup {
               ...
 ```
 
+Ispod je funkcija koja vrši mijenjanje između `--header-insertion=never` i `--header-insertion=iwyu`.
+Funkciju je potrebno dodati u `~/.bashrc`.
+Vrijednost za `lspconfig` je putanja do fajla u kojem je dodan kod iznad, postavljena je na pomenutu putanju.
+``` bash
+nvimswitchinchdr ()
+{
+  hinever='\-\-header-insertion=never'
+  hiiwyu='\-\-header-insertion=iwyu'
+  lspconfig=~/.config/nvim/lua/configs/lspconfig.lua
+  grepnever=$(grep $hinever $lspconfig)
+  grepiwyu=$(grep $hiiwyu $lspconfig)
+  if [[ $grepnever ]]; then
+    sed -i -e "s/$hinever/$hiiwyu/" $lspconfig
+    echo "Switched to --header-insertion=iwyu"
+  elif [[ $grepiwyu ]]; then
+    sed -i -e "s/$hiiwyu/$hinever/" $lspconfig
+    echo "Switched to --header-insertion=never"
+  else
+    echo "--header-insertion flag not present"
+  fi
+}
+```
+
 ---
 
 ## YouTube
